@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Screen Recorder</title>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Multi-Screen Recorder</h1>
+        
+        <div class="card">
+            <h2>Screen Recording Controls</h2>
+            
+            <div class="input-group">
+                <label for="duration">Recording Duration (seconds):</label>
+                <input type="number" id="duration" value="30" min="5" max="3600">
+            </div>
+            
+            <div class="input-group">
+                <label for="video-format">Video Format:</label>
+                <select id="video-format">
+                    <option value="webm">WebM (Recommended)</option>
+                    <option value="mp4">MP4</option>
+                    <option value="mkv">MKV</option>
+                    <option value="avi">AVI</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="video-quality">Video Quality:</label>
+                <select id="video-quality">
+                    <option value="1080p">1080p (High)</option>
+                    <option value="720p" selected>720p (Medium)</option>
+                    <option value="480p">480p (Low)</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="auto-save">Auto-save to device:</label>
+                <div class="toggle-switch" id="auto-save-toggle">
+                    <input type="checkbox" id="auto-save" checked>
+                    <span class="slider"></span>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button id="add-screen-btn" class="btn-success" onclick="addScreenRecording()">Share Screen & Record</button>
+                <button id="stop-all-btn" class="btn-danger" onclick="stopAllRecordings()" disabled>Stop All Recordings</button>
+                <button class="btn-primary" onclick="clearAllRecordings()">Clear All</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Active Screen Recordings</h2>
+            <div id="recordings-preview" class="stream-urls-container">
+                No screen recordings active
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Recording Status</h2>
+            <div id="overall-status" class="status-display">Ready to record</div>
+            <div id="individual-statuses"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Recorded Videos</h2>
+            <div class="button-group" style="margin-bottom: 15px;">
+                <button class="btn-danger" onclick="clearAllSavedRecordings()">Clear All Saved Recordings</button>
+            </div>
+            <div id="recordings-list" class="recordings-list">
+                <p>No recordings yet. Start recording to see your videos here.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ENTERPRISE-GRADE CONFIGURATION CONSTANTS
+        const CONFIG = {
+            MAX_RECORDING_DURATION: 3600000, // 1 hour in milliseconds
+            SCREENSHOT_INTERVALS: {
+                MIN: 2000, // 2 seconds
+                MAX: 6000  // 6 seconds
+            },
+            PREVIEW_DIMENSIONS: {
+                WIDTH: 220,
+                HEIGHT: 130
+            },
+            THUMBNAIL_DIMENSIONS: {
+                WIDTH: 160,
+                HEIGHT: 90
+            },
+            STORAGE_KEYS: {
+                RECORDINGS: 'webRecordings',
+                USER_PREFERENCES: 'userPreferences'
+            },
+            ERROR_RECOVERY_ATTEMPTS: 3,
+            CLEANUP_DELAY: 100
+        };
+
+        // ENTERPRISE STATE MANAGEMENT
+        class RecordingStateManager {
+            constructor() {
+                this.screenRecordings = new Map();
+                this.recordingCounter = 0;
+                this.statusUpdateInterval = null;
+                this.autoSaveEnabled = true;
+                this.thumbnailCaptures = new Map();
+                this.errorHandlers = new Map();
+                this.cleanup = this.cleanup.bind(this);
+                
+                // Initialize auto-save state from localStorage
+                this.loadUserPreferences();
+                this.initializeEventListeners();
+            }
+
+            loadUserPreferences() {
+                try {
+                    const preferences = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USER_PREFERENCES) || '{}');
+                    this.autoSaveEnabled = preferences.autoSave !== undefined ? preferences.autoSave : true;
+                    
+                    // Update UI to reflect saved preference
+                    const autoSaveCheckbox = document.getElementById('auto-save');
+                    if (autoSaveCheckbox) {
+                        autoSaveCheckbox.checked = this.autoSaveEnabled;
+                    }
+                } catch (error) {
+                    console.error('Error loading user preferences:', error);
+                    this.autoSaveEnabled = true;
+                }
+            }
+
+            saveUserPreferences() {
+                try {
+                    const preferences = {
+                        autoSave: this.autoSaveEnabled,
+                        timestamp: new Date().toISOString()
+                    };
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
+                } catch (error) {
+                    console.error('Error saving user preferences:', error);
+                }
+            }
+
+            initializeEventListeners() {
+                // ENTERPRISE-GRADE AUTO-SAVE TOGGLE EVENT BINDING
+                const autoSaveToggle = document.getElementById('auto-save');
+                const toggleContainer = document.getElementById('auto-save-toggle');
+                
+                if (autoSaveToggle && toggleContainer) {
+                    // Multiple event listeners for comprehensive coverage
+                    autoSaveToggle.addEventListener('change', (event) => {
+                        this.handleAutoSaveToggle(event.target.checked);
+                    });
+
+                    autoSaveToggle.addEventListener('click', (event) => {
+                        // Ensure the change event fires correctly
+                        setTimeout(() => {
+                            this.handleAutoSaveToggle(event.target.checked);
+                        }, 10);
+                    });
+
+                    // Click handler for the entire toggle container
+                    toggleContainer.addEventListener('click', (event) => {
+                        if (event.target !== autoSaveToggle) {
+                            event.preventDefault();
+                            autoSaveToggle.checked = !autoSaveToggle.checked;
+                            this.handleAutoSaveToggle(autoSaveToggle.checked);
+                            
+                            // Trigger change event manually
+                            const changeEvent = new Event('change', { bubbles: true });
+                            autoSaveToggle.dispatchEvent(changeEvent);
+                        }
+                    });
+
+                    // Keyboard accessibility
+                    autoSaveToggle.addEventListener('keydown', (event) => {
+                        if (event.key === ' ' || event.key === 'Enter') {
+                            event.preventDefault();
+                            autoSaveToggle.checked = !autoSaveToggle.checked;
+                            this.handleAutoSaveToggle(autoSaveToggle.checked);
+                            
+                            const changeEvent = new Event('change', { bubbles: true });
+                            autoSaveToggle.dispatchEvent(changeEvent);
+                        }
+                    });
+                }
+
+                // Page unload cleanup
+                window.addEventListener('beforeunload', this.cleanup);
+                window.addEventListener('unload', this.cleanup);
+            }
+
+            handleAutoSaveToggle(isEnabled) {
+                try {
+                    this.autoSaveEnabled = isEnabled;
+                    this.saveUserPreferences();
+                    
+                    // Visual micro-interaction only (no popup)
+                    const toggleContainer = document.getElementById('auto-save-toggle');
+                    if (toggleContainer) {
+                        toggleContainer.style.transform = 'scale(1.05)';
+                        setTimeout(() => {
+                            toggleContainer.style.transform = 'scale(1)';
+                        }, 150);
+                    }
+
+                    console.log(`Auto-save toggled: ${isEnabled}`);
+                } catch (error) {
+                    console.error('Error handling auto-save toggle:', error);
+                }
+            }
+
+            cleanup() {
+                try {
+                    // Stop all active recordings
+                    this.screenRecordings.forEach(recording => {
+                        if (recording.mediaRecorder && recording.mediaRecorder.state === 'recording') {
+                            recording.mediaRecorder.stop();
+                        }
+                        if (recording.stream) {
+                            recording.stream.getTracks().forEach(track => track.stop());
+                        }
+                    });
+
+                    // Clear intervals
+                    if (this.statusUpdateInterval) {
+                        clearInterval(this.statusUpdateInterval);
+                    }
+
+                    // Clean up thumbnail captures
+                    this.thumbnailCaptures.forEach((capture, recordingId) => {
+                        if (capture.video) {
+                            capture.video.srcObject = null;
+                        }
+                        if (capture.interval) {
+                            clearInterval(capture.interval);
+                        }
+                    });
+
+                    this.thumbnailCaptures.clear();
+                    this.screenRecordings.clear();
+                } catch (error) {
+                    console.error('Error during cleanup:', error);
+                }
+            }
+
+            showAlert(message, type = 'success') {
+                try {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `alert alert-${type}`;
+                    alertDiv.innerHTML = message;
+                    alertDiv.style.opacity = '0';
+                    alertDiv.style.transform = 'translateY(-20px)';
+                    alertDiv.style.transition = 'all 0.3s ease';
+                    
+                    const container = document.querySelector('.container');
+                    container.insertBefore(alertDiv, container.children[1]);
+                    
+                    // Animate in
+                    setTimeout(() => {
+                        alertDiv.style.opacity = '1';
+                        alertDiv.style.transform = 'translateY(0)';
+                    }, 10);
+                    
+                    // Animate out and remove
+                    setTimeout(() => {
+                        alertDiv.style.opacity = '0';
+                        alertDiv.style.transform = 'translateY(-20px)';
+                        setTimeout(() => {
+                            if (alertDiv.parentNode) {
+                                alertDiv.remove();
+                            }
+                        }, 300);
+                    }, 4700);
+                } catch (error) {
+                    console.error('Error showing alert:', error);
+                }
+            }
+        }
+
+        // ENTERPRISE-GRADE THUMBNAIL CAPTURE SYSTEM
+        class ThumbnailCaptureEngine {
+            constructor(stateManager) {
+                this.stateManager = stateManager;
+                this.canvas = document.createElement('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.captureQueue = new Map();
+            }
+
+            async initializeThumbnailCapture(stream, recordingId) {
+                try {
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.autoplay = true;
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.style.position = 'absolute';
+                    video.style.left = '-9999px';
+                    video.style.top = '-9999px';
+                    video.style.width = '1px';
+                    video.style.height = '1px';
+                    
+                    // Add to DOM to ensure proper loading
+                    document.body.appendChild(video);
+
+                    return new Promise((resolve, reject) => {
+                        const timeoutId = setTimeout(() => {
+                            reject(new Error('Video loading timeout'));
+                        }, 10000);
+
+                        video.onloadedmetadata = async () => {
+                            clearTimeout(timeoutId);
+                            try {
+                                await video.play();
+                                
+                                // Wait for first frame
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                
+                                const captureData = {
+                                    video,
+                                    stream,
+                                    recordingId,
+                                    isActive: true,
+                                    captureCount: 0,
+                                    lastCapture: null
+                                };
+
+                                this.stateManager.thumbnailCaptures.set(recordingId, captureData);
+                                this.startContinuousCapture(captureData);
+                                resolve(captureData);
+                            } catch (playError) {
+                                clearTimeout(timeoutId);
+                                document.body.removeChild(video);
+                                reject(playError);
+                            }
+                        };
+
+                        video.onerror = () => {
+                            clearTimeout(timeoutId);
+                            document.body.removeChild(video);
+                            reject(new Error('Video loading failed'));
+                        };
+                    });
+                } catch (error) {
+                    console.error('Error initializing thumbnail capture:', error);
+                    throw error;
+                }
+            }
+
+            startContinuousCapture(captureData) {
+                const captureFrame = () => {
+                    if (!captureData.isActive || !this.stateManager.screenRecordings.has(captureData.recordingId)) {
+                        this.stopCapture(captureData.recordingId);
+                        return;
+                    }
+
+                    try {
+                        const { video } = captureData;
+                        
+                        if (video.videoWidth > 0 && video.videoHeight > 0 && !video.paused) {
+                            // Set canvas dimensions
+                            this.canvas.width = CONFIG.THUMBNAIL_DIMENSIONS.WIDTH;
+                            this.canvas.height = CONFIG.THUMBNAIL_DIMENSIONS.HEIGHT;
+                            
+                            // Calculate aspect ratio scaling
+                            const videoAspect = video.videoWidth / video.videoHeight;
+                            const canvasAspect = this.canvas.width / this.canvas.height;
+                            
+                            let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+                            
+                            if (videoAspect > canvasAspect) {
+                                // Video is wider - crop sides
+                                sw = video.videoHeight * canvasAspect;
+                                sx = (video.videoWidth - sw) / 2;
+                            } else {
+                                // Video is taller - crop top/bottom
+                                sh = video.videoWidth / canvasAspect;
+                                sy = (video.videoHeight - sh) / 2;
+                            }
+                            
+                            // Clear canvas
+                            this.ctx.fillStyle = '#000000';
+                            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                            
+                            // Draw video frame with proper scaling
+                            this.ctx.drawImage(
+                                video, 
+                                sx, sy, sw, sh,
+                                0, 0, this.canvas.width, this.canvas.height
+                            );
+                            
+                            // Apply dark overlay for better thumbnail visibility
+                            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+                            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                            
+                            // Convert to data URL
+                            const thumbnail = this.canvas.toDataURL('image/jpeg', 0.8);
+                            
+                            // Update recording data
+                            const recording = this.stateManager.screenRecordings.get(captureData.recordingId);
+                            if (recording) {
+                                recording.screenshot = thumbnail;
+                                captureData.lastCapture = thumbnail;
+                                captureData.captureCount++;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error capturing frame:', error);
+                    }
+
+                    // Schedule next capture
+                    const nextDelay = Math.random() * 
+                        (CONFIG.SCREENSHOT_INTERVALS.MAX - CONFIG.SCREENSHOT_INTERVALS.MIN) + 
+                        CONFIG.SCREENSHOT_INTERVALS.MIN;
+                    
+                    captureData.timeoutId = setTimeout(captureFrame, nextDelay);
+                };
+
+                // Start first capture after initial delay
+                captureData.timeoutId = setTimeout(captureFrame, 2000);
+            }
+
+            stopCapture(recordingId) {
+                const captureData = this.stateManager.thumbnailCaptures.get(recordingId);
+                if (captureData) {
+                    captureData.isActive = false;
+                    
+                    if (captureData.timeoutId) {
+                        clearTimeout(captureData.timeoutId);
+                    }
+                    
+                    if (captureData.video) {
+                        captureData.video.srcObject = null;
+                        if (captureData.video.parentNode) {
+                            captureData.video.parentNode.removeChild(captureData.video);
+                        }
+                    }
+                    
+                    this.stateManager.thumbnailCaptures.delete(recordingId);
+                }
+            }
+        }
+
+        // CRITICAL MISSING FUNCTIONS FOR SHARE SCREEN FUNCTIONALITY
+        function getVideoConstraints(quality) {
+            const constraints = {
+                video: {
+                    frameRate: { ideal: 30, max: 60 }
+                }
+            };
+            
+            switch (quality) {
+                case '1080p':
+                    constraints.video.width = { ideal: 1920 };
+                    constraints.video.height = { ideal: 1080 };
+                    break;
+                case '720p':
+                    constraints.video.width = { ideal: 1280 };
+                    constraints.video.height = { ideal: 720 };
+                    break;
+                case '480p':
+                    constraints.video.width = { ideal: 854 };
+                    constraints.video.height = { ideal: 480 };
+                    break;
+            }
+            
+            return constraints;
+        }
+
+        function updateRecordingsPreview() {
+            const previewContainer = document.getElementById('recordings-preview');
+            
+            if (stateManager.screenRecordings.size === 0) {
+                previewContainer.innerHTML = 'No screen recordings active';
+                document.getElementById('stop-all-btn').disabled = true;
+                return;
+            }
+            
+            previewContainer.innerHTML = '';
+            document.getElementById('stop-all-btn').disabled = false;
+            
+            stateManager.screenRecordings.forEach((recording, id) => {
+                const recordingItem = document.createElement('div');
+                recordingItem.className = 'recording-status-item recording';
+                recordingItem.innerHTML = `
+                    <div style="flex: 1;">
+                        <div class="url-label">${recording.tabTitle || 'Screen Recording'} ${id}</div>
+                        <div class="status-text">Recording... ${formatTime((Date.now() - recording.startTime) / 1000)} elapsed</div>
+                    </div>
+                    <div class="recording-preview-container">
+                        <video id="preview-${id}" class="preview-video" autoplay muted playsinline></video>
+                        <div class="preview-overlay">
+                            <div class="recording-indicator">
+                                <div class="recording-dot"></div>
+                                REC
+                            </div>
+                        </div>
+                    </div>
+                    <button class="remove-btn" onclick="stopScreenRecording(${id})">Stop</button>
+                `;
+                previewContainer.appendChild(recordingItem);
+                
+                // Set video source to show live preview
+                setTimeout(() => {
+                    const video = document.getElementById(`preview-${id}`);
+                    if (video && recording.stream) {
+                        video.srcObject = recording.stream;
+                        // Ensure playback on some mobile/desktop browsers
+                        video.play && video.play().catch(() => {});
+                    }
+                }, 100);
+            });
+        }
+
+        async function addScreenRecording() {
+            try {
+                // Basic capability checks
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    stateManager.showAlert('Screen sharing is not supported in this browser. Try the latest Chrome, Edge, or Firefox.', 'error');
+                    return;
+                }
+                if (typeof MediaRecorder === 'undefined') {
+                    stateManager.showAlert('MediaRecorder API not available in this browser.', 'error');
+                    return;
+                }
+
+                const selectedQuality = document.getElementById('video-quality').value;
+                const constraints = getVideoConstraints(selectedQuality);
+                // Keep it simple and let the browser present a single chooser
+                constraints.video.cursor = 'always';
+
+                // Single, simple prompt (no fallbacks, no extra attempts)
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: constraints.video,
+                    audio: true
+                });
+
+                if (!stream || stream.getVideoTracks().length === 0) {
+                    stateManager.showAlert('No video track captured. Please try again and choose a tab.', 'error');
+                    return;
+                }
+
+                const recordingId = ++stateManager.recordingCounter;
+                const duration = parseInt(document.getElementById('duration').value) * 1000;
+
+                // Derive a friendly title from the track label when available
+                let tabTitle = 'Screen Recording';
+                try {
+                    const label = stream.getVideoTracks()[0]?.label || '';
+                    if (label.includes('tab:')) {
+                        tabTitle = label.split('tab:')[1].trim();
+                    } else if (label) {
+                        tabTitle = label.trim();
+                    }
+                    tabTitle = tabTitle.replace(/[^\w\s-]/g, '').substring(0, 50) || 'Screen Recording';
+                } catch {}
+
+                try {
+                    await thumbnailEngine.initializeThumbnailCapture(stream, recordingId);
+                } catch (thumbnailError) {
+                    console.warn('Thumbnail capture initialization failed:', thumbnailError);
+                }
+
+                startScreenRecording(stream, recordingId, duration, tabTitle);
+                stateManager.showAlert(`Screen recording ${recordingId} started with ${selectedQuality} quality`);
+
+            } catch (error) {
+                console.error('Error accessing screen:', error);
+                let errorMessage = 'Failed to access screen. ';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += 'Please grant screen sharing permission and choose a tab.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += 'No sharing source available.';
+                } else if (error.name === 'TypeError') {
+                    errorMessage += 'Some browsers require serving this page over http(s) (localhost is OK).';
+                } else {
+                    errorMessage += 'Please try again.';
+                }
+                stateManager.showAlert(errorMessage, 'error');
+            }
+        }
+
+        function stopScreenRecording(recordingId) {
+            const recording = stateManager.screenRecordings.get(recordingId);
+            if (recording && recording.mediaRecorder.state !== 'inactive') {
+                const thumbnailData = stateManager.thumbnailCaptures.get(recordingId);
+                if (thumbnailData && thumbnailData.video && thumbnailData.video.videoWidth > 0) {
+                    try {
+                        thumbnailEngine.captureFinalThumbnail(recordingId);
+                    } catch (error) {
+                        console.warn('Final thumbnail capture failed:', error);
+                    }
+                }
+                
+                recording.mediaRecorder.stop();
+                recording.stream.getTracks().forEach(track => track.stop());
+                
+                setTimeout(() => {
+                    thumbnailEngine.stopCapture(recordingId);
+                }, 500);
+            }
+        }
+
+        function startStatusUpdates() {
+            if (stateManager.statusUpdateInterval) {
+                clearInterval(stateManager.statusUpdateInterval);
+            }
+            
+            stateManager.statusUpdateInterval = setInterval(updateStatusDisplay, 1000);
+        }
+
+        function stopStatusUpdates() {
+            if (stateManager.statusUpdateInterval) {
+                clearInterval(stateManager.statusUpdateInterval);
+                stateManager.statusUpdateInterval = null;
+            }
+        }
+
+        function updateStatusDisplay() {
+            const overallStatus = document.getElementById('overall-status');
+            const individualStatuses = document.getElementById('individual-statuses');
+            
+            if (stateManager.screenRecordings.size === 0) {
+                overallStatus.textContent = 'Ready to record screens';
+                overallStatus.classList.remove('recording-active');
+                individualStatuses.innerHTML = '';
+                stopStatusUpdates();
+                return;
+            }
+            
+            overallStatus.textContent = `Recording ${stateManager.screenRecordings.size} screens...`;
+            overallStatus.classList.add('recording-active');
+            
+            // Update individual statuses
+            individualStatuses.innerHTML = '';
+            stateManager.screenRecordings.forEach((recording, id) => {
+                const statusItem = document.createElement('div');
+                statusItem.className = 'recording-status-item recording';
+                
+                const recordingElapsed = (Date.now() - recording.startTime) / 1000;
+                const remaining = Math.max(0, (recording.duration / 1000) - recordingElapsed);
+                
+                statusItem.innerHTML = `
+                    <div class="url-label">${recording.tabTitle || 'Screen Recording'} ${id}</div>
+                    <div class="status-text">Recording... ${formatTime(recordingElapsed)} elapsed, ${formatTime(remaining)} remaining</div>
+                `;
+                
+                individualStatuses.appendChild(statusItem);
+            });
+            
+            updateRecordingsPreview();
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function startScreenRecording(stream, recordingId, duration, tabTitle = "Unknown") {
+            const selectedFormat = document.getElementById('video-format').value;
+            let options = {};
+            
+            // Set MIME type based on selected format with fallbacks
+            switch(selectedFormat) {
+                case 'mp4':
+                    options.mimeType = 'video/mp4';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'video/webm'; // Fallback
+                    }
+                    break;
+                case 'mkv':
+                    options.mimeType = 'video/x-matroska';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'video/webm'; // Fallback
+                    }
+                    break;
+                case 'avi':
+                    options.mimeType = 'video/avi';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'video/webm'; // Fallback
+                    }
+                    break;
+                default: // webm
+                    options.mimeType = 'video/webm;codecs=vp9,opus';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'video/webm;codecs=vp8,opus';
+                        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                            options.mimeType = 'video/webm';
+                        }
+                    }
+            }
+            
+            const mediaRecorder = new MediaRecorder(stream, options);
+            const recordedChunks = [];
+            const startTime = Date.now();
+            
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = function() {
+                // Save the recording data
+                saveScreenRecording(recordedChunks, recordingId, startTime, tabTitle);
+                
+                // Clean up the recording from active list
+                setTimeout(() => {
+                    stateManager.screenRecordings.delete(recordingId);
+                    thumbnailEngine.stopCapture(recordingId);
+                    updateRecordingsPreview();
+                    updateStatusDisplay();
+                }, CONFIG.CLEANUP_DELAY);
+            };
+
+            // Handle stream ending (user stops sharing)
+            stream.getVideoTracks()[0].addEventListener('ended', () => {
+                if (mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+            });
+            
+            mediaRecorder.start(1000);
+            
+            stateManager.screenRecordings.set(recordingId, {
+                mediaRecorder,
+                stream,
+                startTime,
+                duration,
+                tabTitle,
+                screenshot: null
+            });
+            
+            // Auto-stop after duration
+            setTimeout(() => {
+                if (stateManager.screenRecordings.has(recordingId)) {
+                    stopScreenRecording(recordingId);
+                }
+            }, duration);
+            
+            updateRecordingsPreview();
+            startStatusUpdates();
+        }
+
+        function saveScreenRecording(recordedChunks, recordingId, startTime, tabTitle = "Unknown") {
+            if (recordedChunks.length === 0) {
+                stateManager.showAlert(`No recording data to save for screen ${recordingId}`, 'error');
+                return;
+            }
+            
+            const selectedFormat = document.getElementById('video-format').value;
+            const selectedQuality = document.getElementById('video-quality').value;
+            const autoSave = stateManager.autoSaveEnabled;
+            const mimeType = getMimeTypeForFormat(selectedFormat);
+            const blob = new Blob(recordedChunks, { type: mimeType });
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            
+            // Clean tab title for filename (remove special characters)
+            const cleanTabTitle = tabTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+            
+            // Get count of recordings with the same tab title
+            const recordings = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.RECORDINGS) || '[]');
+            const sameTabCount = recordings.filter(rec => 
+                rec.tabTitle && rec.tabTitle.toLowerCase() === tabTitle.toLowerCase()
+            ).length + 1;
+            
+            const filename = `${cleanTabTitle}_${sameTabCount}_${selectedQuality}.${selectedFormat}`;
+            const duration = (Date.now() - startTime) / 1000;
+            
+            // Save to localStorage for persistence
+            const reader = new FileReader();
+            reader.onload = function() {
+                const recordings = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.RECORDINGS) || '[]');
+                
+                // Get screenshot from active recording or thumbnail capture
+                let screenshot = null;
+                const activeRecording = stateManager.screenRecordings.get(recordingId);
+                const thumbnailData = stateManager.thumbnailCaptures.get(recordingId);
+                
+                if (activeRecording && activeRecording.screenshot) {
+                    screenshot = activeRecording.screenshot;
+                } else if (thumbnailData && thumbnailData.lastCapture) {
+                    screenshot = thumbnailData.lastCapture;
+                }
+                
+                recordings.push({
+                    filename: filename,
+                    data: reader.result,
+                    size: blob.size,
+                    timestamp: new Date().toISOString(),
+                    duration: duration,
+                    sourceUrl: `${tabTitle} ${recordingId}`,
+                    streamIndex: recordingId,
+                    format: selectedFormat,
+                    quality: selectedQuality,
+                    tabTitle: tabTitle,
+                    tabCount: sameTabCount,
+                    screenshot: screenshot
+                });
+                
+                localStorage.setItem(CONFIG.STORAGE_KEYS.RECORDINGS, JSON.stringify(recordings));
+                loadSavedRecordings();
+                
+                // Auto-save to device if enabled
+                if (autoSave) {
+                    try {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(a.href);
+                        stateManager.showAlert(`Screen recording ${recordingId} auto-saved to your device`);
+                    } catch (downloadError) {
+                        console.error('Auto-save failed:', downloadError);
+                        stateManager.showAlert(`Recording saved but auto-download failed: ${filename}`, 'error');
+                    }
+                } else {
+                    stateManager.showAlert(`Screen recording ${recordingId} saved: ${filename}`);
+                }
+            };
+            
+            reader.onerror = function() {
+                stateManager.showAlert(`Failed to save recording ${recordingId}`, 'error');
+            };
+            
+            reader.readAsDataURL(blob);
+        }
+
+        function getMimeTypeForFormat(format) {
+            switch(format) {
+                case 'mp4': return 'video/mp4';
+                case 'mkv': return 'video/x-matroska';
+                case 'avi': return 'video/avi';
+                default: return 'video/webm';
+            }
+        }
+
+        function stopAllRecordings() {
+            stateManager.screenRecordings.forEach((recording, id) => {
+                if (recording.mediaRecorder && recording.mediaRecorder.state !== 'inactive') {
+                    recording.mediaRecorder.stop();
+                }
+                if (recording.stream) {
+                    recording.stream.getTracks().forEach(track => track.stop());
+                }
+                thumbnailEngine.stopCapture(id);
+            });
+            
+            stateManager.showAlert('All screen recordings stopped');
+        }
+
+        function clearAllRecordings() {
+            if (stateManager.screenRecordings.size > 0) {
+                stateManager.showAlert('Cannot clear while recordings are active', 'error');
+                return;
+            }
+            updateRecordingsPreview();
+            stateManager.showAlert('All recordings cleared');
+        }
+
+        function loadSavedRecordings() {
+            const recordings = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.RECORDINGS) || '[]');
+            const recordingsList = document.getElementById('recordings-list');
+            
+            if (recordings.length === 0) {
+                recordingsList.innerHTML = '<p>No recordings yet. Start recording to see your videos here.</p>';
+                return;
+            }
+            
+            recordingsList.innerHTML = '';
+            
+            recordings.reverse().forEach((recording, index) => {
+                const recordingDiv = document.createElement('div');
+                recordingDiv.className = 'recording-item';
+                
+                const sizeInMB = (recording.size / (1024 * 1024)).toFixed(2);
+                const date = new Date(recording.timestamp).toLocaleString();
+                const sourceInfo = `Format: ${recording.format?.toUpperCase() || 'WEBM'} | Quality: ${recording.quality || '720p'}`;
+                
+                let screenshotHtml = '';
+                if (recording.screenshot) {
+                    screenshotHtml = `
+                        <div class="thumbnail-container">
+                            <img src="${recording.screenshot}" 
+                                 alt="Recording thumbnail" 
+                                 class="thumbnail-image"
+                                 onclick="downloadScreenshot(${recordings.length - 1 - index})"
+                                 title="Click to download thumbnail">
+                        </div>
+                    `;
+                }
+                
+                recordingDiv.innerHTML = `
+                    <div class="recording-info">
+                        <div class="recording-name">${recording.filename}</div>
+                        <div class="recording-details">
+                            Size: ${sizeInMB} MB | Duration: ${formatTime(recording.duration || 0)} | 
+                            Created: ${date} | ${sourceInfo}
+                        </div>
+                        ${screenshotHtml}
+                    </div>
+                    <div>
+                        <button class="download-btn" onclick="downloadRecording(${recordings.length - 1 - index})">
+                            Download Video
+                        </button>
+                        <button class="download-btn delete-btn" onclick="deleteRecording(${recordings.length - 1 - index})">
+                            Delete
+                        </button>
+                    </div>
+                `;
+                
+                recordingsList.appendChild(recordingDiv);
+            });
+        }
+
+        function downloadRecording(index) {
+            const recordings = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.RECORDINGS) || '[]');
+            const recording = recordings[index];
+            
+            if (recording) {
+                try {
+                    const a = document.createElement('a');
+                    a.href = recording.data;
+                    a.download = recording.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    stateManager.showAlert('Video download started');
+                } catch (error) {
+                    console.error('Download failed:', error);
+                    stateManager.showAlert('Download failed', 'error');
+                }
+            }
+        }
+
+        function downloadScreenshot(index) {
+            const recordings = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.RECORDINGS) || '[]');
+            const recording = recordings[index];
+            
+            if (recording && recording.screenshot) {
+                try {
+                    const a = document.createElement('a');
+                    a.href = recording.screenshot;
+                    const screenshotFilename = recording.filename.replace(/\.[^/.]+$/, '_thumbnail.jpg');
+                    a.download = screenshotFilename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    stateManager.showAlert('Thumbnail downloaded');
+                } catch (error) {
+                    console.error('Thumbnail download failed:', error);
+                    stateManager.showAlert('Thumbnail download failed', 'error');
+                }
+            }
+        }
+
+        function deleteRecording(index) {
+            const recordings = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.RECORDINGS) || '[]');
+            recordings.splice(index, 1);
+            localStorage.setItem(CONFIG.STORAGE_KEYS.RECORDINGS, JSON.stringify(recordings));
+            loadSavedRecordings();
+            stateManager.showAlert('Recording deleted');
+        }
+
+        function clearAllSavedRecordings() {
+            localStorage.removeItem(CONFIG.STORAGE_KEYS.RECORDINGS);
+            loadSavedRecordings();
+            stateManager.showAlert('All saved recordings cleared');
+        }
+
+        // INITIALIZE GLOBAL STATE
+        const stateManager = new RecordingStateManager();
+        const thumbnailEngine = new ThumbnailCaptureEngine(stateManager);
+
+        // ADD captureFinalThumbnail METHOD TO THUMBNAIL ENGINE
+        ThumbnailCaptureEngine.prototype.captureFinalThumbnail = function(recordingId) {
+            const captureData = this.stateManager.thumbnailCaptures.get(recordingId);
+            if (!captureData || !captureData.video) return null;
+            
+            try {
+                const { video } = captureData;
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    this.canvas.width = CONFIG.THUMBNAIL_DIMENSIONS.WIDTH;
+                    this.canvas.height = CONFIG.THUMBNAIL_DIMENSIONS.HEIGHT;
+
+                    const videoAspect = video.videoWidth / video.videoHeight;
+                    const canvasAspect = this.canvas.width / this.canvas.height;
+                    let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+                    
+                    if (videoAspect > canvasAspect) {
+                        sw = video.videoHeight * canvasAspect;
+                        sx = (video.videoWidth - sw) / 2;
+                    } else {
+                        sh = video.videoWidth / canvasAspect;
+                        sy = (video.videoHeight - sh) / 2;
+                    }
+
+                    this.ctx.fillStyle = '#000000';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.drawImage(video, sx, sy, sw, sh, 0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    const thumbnail = this.canvas.toDataURL('image/jpeg', 0.8);
+
+                    const recording = this.stateManager.screenRecordings.get(recordingId);
+                    if (recording) {
+                        recording.screenshot = thumbnail;
+                    }
+                    captureData.lastCapture = thumbnail;
+                    return thumbnail;
+                }
+            } catch (e) {
+                console.warn('captureFinalThumbnail error:', e);
+            }
+            return null;
+        };
+
+        // LOAD SAVED RECORDINGS ON PAGE LOAD
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedRecordings();
+        });
+
+        // Format time helper function
+        // Removed duplicate function formatTime here to avoid redefinition
+    </script>
+</body>
+</html>
