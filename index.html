@@ -31,13 +31,12 @@
             
             <div class="input-group">
                 <label for="video-quality">Video Quality:</label>
-                <select id="video-quality">
-                    <option value="4k" selected>4K Ultra (3840x2160) - Super Sharp!</option>
-                    <option value="1440p">1440p QHD (2560x1440) - Really Good</option>
-                    <option value="1080p">1080p Full HD (1920x1080) - Good</option>
-                    <option value="720p">720p HD (1280x720) - Decent</option>
-                    <option value="480p">480p SD (854x480) - Basic</option>
-                </select>
+                <div class="quality-slider-container">
+                    <input type="range" id="video-quality" class="quality-slider" min="0" max="4" value="0" step="1">
+                    <div class="quality-display">
+                        <span id="quality-text">4K Ultra</span>
+                    </div>
+                </div>
             </div>
             
             <div class="input-group">
@@ -116,6 +115,7 @@
                 // Load user's saved preferences
                 this.loadUserPreferences();
                 this.initializeEventListeners();
+                this.initializeQualitySlider();
             }
 
             loadUserPreferences() {
@@ -156,6 +156,19 @@
                 // Clean up when page closes
                 window.addEventListener('beforeunload', this.cleanup);
                 window.addEventListener('unload', this.cleanup);
+            }
+
+            initializeQualitySlider() {
+                const qualitySlider = document.getElementById('video-quality');
+                const qualityText = document.getElementById('quality-text');
+                const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
+                
+                if (qualitySlider && qualityText) {
+                    qualitySlider.addEventListener('input', (e) => {
+                        const value = parseInt(e.target.value);
+                        qualityText.textContent = qualityNames[value] || '4K Ultra';
+                    });
+                }
             }
 
             handleAutoSaveToggle(event) {
@@ -394,12 +407,23 @@
         }
 
         // This function sets up video quality based on what the user picked
-        function getVideoConstraints(quality) {
+        function getVideoConstraints(qualityValue) {
             const constraints = {
                 video: {
                     frameRate: { ideal: 60, max: 60 }  // Higher framerate for smoother video
                 }
             };
+            
+            // Convert slider value to quality setting
+            const qualityMap = {
+                0: '4k',
+                1: '1440p', 
+                2: '1080p',
+                3: '720p',
+                4: '480p'
+            };
+            
+            const quality = qualityMap[qualityValue] || '4k';
             
             // Set resolution based on quality choice
             switch (quality) {
@@ -487,7 +511,7 @@
                     return;
                 }
 
-                const selectedQuality = document.getElementById('video-quality').value;
+                const selectedQuality = parseInt(document.getElementById('video-quality').value);
                 const constraints = getVideoConstraints(selectedQuality);
                 // Show cursor in recordings
                 constraints.video.cursor = 'always';
@@ -525,8 +549,11 @@
                     console.warn('Thumbnail capture setup failed:', thumbnailError);
                 }
 
+                const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
+                const qualityName = qualityNames[selectedQuality] || '4K Ultra';
+                
                 startScreenRecording(stream, recordingId, duration, tabTitle);
-                stateManager.showAlert(`Started recording in ${selectedQuality} quality!`);
+                stateManager.showAlert(`Started recording in ${qualityName} quality!`);
 
             } catch (error) {
                 console.error('Error starting recording:', error);
@@ -753,7 +780,9 @@
             }
             
             const selectedFormat = document.getElementById('video-format').value;
-            const selectedQuality = document.getElementById('video-quality').value;
+            const qualitySlider = document.getElementById('video-quality');
+            const qualityValues = ['4k', '1440p', '1080p', '720p', '480p'];
+            const selectedQuality = qualityValues[parseInt(qualitySlider.value)];
             const autoSave = stateManager.autoSaveEnabled;
             const mimeType = getMimeTypeForFormat(selectedFormat);
             const blob = new Blob(recordedChunks, { type: mimeType });
@@ -1050,6 +1079,27 @@
         // LOAD SAVED RECORDINGS ON PAGE LOAD
         document.addEventListener('DOMContentLoaded', function() {
             loadSavedRecordings();
+            
+            // Quality slider functionality
+            const qualitySlider = document.getElementById('video-quality');
+            const qualityText = document.getElementById('quality-text');
+            
+            const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
+            
+            function updateQualityDisplay(value) {
+                if (qualityText) {
+                    qualityText.textContent = qualityNames[value] || '4K Ultra';
+                }
+            }
+            
+            if (qualitySlider) {
+                qualitySlider.addEventListener('input', function() {
+                    updateQualityDisplay(this.value);
+                });
+                
+                // Initialize display
+                updateQualityDisplay(qualitySlider.value);
+            }
         });
     </script>
 </body>
