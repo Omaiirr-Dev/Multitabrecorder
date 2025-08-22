@@ -55,12 +55,87 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
 .recording-dot { width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .thumbnail-container { position: relative; display: inline-block; margin: 10px 0; }
-.thumbnail-image { width: 160px; height: 90px; object-fit: cover; border-radius: 4px; border: 1px solid #404040; cursor: pointer; transition: transform 0.2s ease; }
-.thumbnail-image:hover { transform: scale(1.05); border-color: #1976d2; }
+.thumbnail-image { width: 80px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #404040; margin-right: 10px; }
 .alert { padding: 12px 16px; margin: 15px 0; border-radius: 2px; font-weight: 400; font-size: 14px; }
 .alert-success { background: #1b2e1b; color: #81c784; border: 1px solid #2e5d2e; }
 .alert-error { background: #2e1b1b; color: #e57373; border: 1px solid #5d2e2e; }
-.stream-urls-container { margin: 20px 0; padding: 15px; background: #2a2a2a; border-radius: 8px; }
+
+/* Fixed container - no scrolling, shows all videos */
+.stream-urls-container { 
+    margin: 20px 0; 
+    padding: 15px; 
+    background: #2a2a2a; 
+    border-radius: 8px;
+    max-height: none !important;
+    overflow: visible !important;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Clean recordings list - no scrolling */
+.recordings-list { 
+    max-height: none !important;
+    overflow: visible !important;
+    border: 1px solid #404040; 
+    border-radius: 4px; 
+    padding: 15px; 
+    background: #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Clean recording item layout */
+.recording-item {
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s ease;
+}
+
+.recording-item:hover {
+    border-color: #1976d2;
+}
+
+.recording-item-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 12px;
+}
+
+.recording-item-info {
+    flex: 1;
+}
+
+.recording-item-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Orange rename button with white text */
+.rename-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s ease;
+    font-weight: 500;
+}
+
+.rename-btn:hover {
+    background: #f57c00;
+}
+
 .stream-urls-container h3 { color: #ffffff; margin-bottom: 15px; font-size: 1.1em; font-weight: 400; }
 @media (max-width: 768px) { .container { padding: 15px; } .card { padding: 20px; } .button-group { flex-direction: column; } button { width: 100%; } .recording-item { flex-direction: column; align-items: flex-start; gap: 12px; } .recording-item > div:last-child { align-self: flex-end; } .input-group { flex-direction: column; align-items: flex-start; gap: 8px; } label { min-width: auto; } .preview-video { width: 180px; height: 100px; } }
 .recording-dot { animation: pulse 1.5s infinite !important; }
