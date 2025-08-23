@@ -223,3 +223,20 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
 .stream-urls-container h3 { color: #ffffff; margin-bottom: 15px; font-size: 1.1em; font-weight: 400; }
 @media (max-width: 768px) { .container { padding: 15px; } .card { padding: 20px; } .button-group { flex-direction: column; } button { width: 100%; } .recording-item { flex-direction: column; align-items: flex-start; gap: 12px; } .recording-item > div:last-child { align-self: flex-end; } .input-group { flex-direction: column; align-items: flex-start; gap: 8px; } label { min-width: auto; } .preview-video { width: 180px; height: 100px; } .quality-slider-container { flex-direction: column; align-items: flex-start; gap: 8px; } .quality-slider { width: 100%; } }
 .recording-dot { animation: pulse 1.5s infinite !important; }
+
+/* Quality warning styling */
+.quality-warning {
+    margin-top: 8px;
+}
+
+.warning-text {
+    font-size: 12px;
+    color: #f44336;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Remove all toggle button related styles */
+/* .toggle-btn, .toggle-text styles can be removed */

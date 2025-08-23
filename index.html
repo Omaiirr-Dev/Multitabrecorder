@@ -32,18 +32,14 @@
             <div class="input-group">
                 <label for="video-quality">Video Quality:</label>
                 <div class="quality-slider-container">
-                    <input type="range" id="video-quality" class="quality-slider" min="0" max="4" value="0" step="1">
+                    <input type="range" id="video-quality" class="quality-slider" min="0" max="4" value="2" step="1">
                     <div class="quality-display">
-                        <span id="quality-text">4K Ultra</span>
+                        <span id="quality-text">1080p Full HD</span>
                     </div>
                 </div>
-            </div>
-            
-            <div class="input-group">
-                <label for="auto-save">Auto-save to device:</label>
-                <button id="auto-save" class="toggle-btn" data-enabled="true">
-                    <span class="toggle-text">ON</span>
-                </button>
+                <div class="quality-warning">
+                    <span class="warning-text">⚠️ 4K will be too large so avoid using it unless required</span>
+                </div>
             </div>
             
             <div class="button-group">
@@ -106,60 +102,16 @@
                 this.screenRecordings = new Map();  // active recordings
                 this.recordingCounter = 0;          // count how many we've made
                 this.statusUpdateInterval = null;   // timer for updating UI
-                this.autoSaveEnabled = true;        // save files automatically
                 this.thumbnailCaptures = new Map();  // screenshot data
                 this.errorHandlers = new Map();      // error handling
                 this.cleanup = this.cleanup.bind(this);
                 
-                // Load user's saved preferences
-                this.loadUserPreferences();
+                // Simplified initialization - no auto-save preferences
                 this.initializeEventListeners();
                 this.initializeQualitySlider();
             }
 
-            loadUserPreferences() {
-                try {
-                    const preferences = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USER_PREFERENCES) || '{}');
-                    this.autoSaveEnabled = preferences.autoSave !== undefined ? preferences.autoSave : true;
-                    
-                    // Update the toggle button to match saved setting
-                    this.updateToggleButton();
-                } catch (error) {
-                    console.error('Oops, couldn\'t load your preferences:', error);
-                    this.autoSaveEnabled = true;
-                    this.updateToggleButton();
-                }
-            }
-
-            updateToggleButton() {
-                const toggleBtn = document.getElementById('auto-save');
-                const toggleText = toggleBtn?.querySelector('.toggle-text');
-                
-                if (toggleBtn && toggleText) {
-                    toggleBtn.setAttribute('data-enabled', this.autoSaveEnabled.toString());
-                    toggleText.textContent = this.autoSaveEnabled ? 'ON' : 'OFF';
-                }
-            }
-
-            saveUserPreferences() {
-                try {
-                    const preferences = {
-                        autoSave: this.autoSaveEnabled,
-                        timestamp: new Date().toISOString()
-                    };
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
-                } catch (error) {
-                    console.error('Couldn\'t save your preferences:', error);
-                }
-            }
-
             initializeEventListeners() {
-                // Listen for auto-save toggle clicks
-                const autoSaveToggle = document.getElementById('auto-save');
-                if (autoSaveToggle) {
-                    autoSaveToggle.addEventListener('click', this.handleAutoSaveToggle.bind(this));
-                }
-                
                 // Clean up when page closes
                 window.addEventListener('beforeunload', this.cleanup);
                 window.addEventListener('unload', this.cleanup);
@@ -171,23 +123,18 @@
                 const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
                 
                 if (qualitySlider && qualityText) {
+                    // Set default to 1080p (value 2)
+                    qualitySlider.value = 2;
+                    qualityText.textContent = '1080p Full HD';
+                    
                     qualitySlider.addEventListener('input', (e) => {
                         const value = parseInt(e.target.value);
-                        qualityText.textContent = qualityNames[value] || '4K Ultra';
+                        qualityText.textContent = qualityNames[value] || '1080p Full HD';
                     });
                 }
             }
 
-            handleAutoSaveToggle() {
-                this.autoSaveEnabled = !this.autoSaveEnabled;
-                this.updateToggleButton();
-                this.saveUserPreferences();
-                
-                const message = this.autoSaveEnabled ? 
-                    'Auto-save enabled - recordings will download automatically' : 
-                    'Auto-save disabled - you\'ll need to manually download recordings';
-                this.showAlert(message);
-            }
+
 
             cleanup() {
                 // Stop all active recordings when leaving the page
@@ -791,7 +738,7 @@
             const qualitySlider = document.getElementById('video-quality');
             const qualityValues = ['4k', '1440p', '1080p', '720p', '480p'];
             const selectedQuality = qualityValues[parseInt(qualitySlider.value)];
-            const autoSave = stateManager.autoSaveEnabled;
+            const autoSave = true; // Always auto-save now
             const mimeType = getMimeTypeForFormat(selectedFormat);
             const blob = new Blob(recordedChunks, { type: mimeType });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -842,7 +789,7 @@
                 localStorage.setItem(CONFIG.STORAGE_KEYS.RECORDINGS, JSON.stringify(recordings));
                 loadSavedRecordings();
                 
-                // Auto-save to device if enabled
+                // Always auto-save since there's no toggle
                 if (autoSave) {
                     try {
                         const a = document.createElement('a');
@@ -1096,7 +1043,7 @@
             
             function updateQualityDisplay(value) {
                 if (qualityText) {
-                    qualityText.textContent = qualityNames[value] || '4K Ultra';
+                    qualityText.textContent = qualityNames[value] || '1080p Full HD';
                 }
             }
             
