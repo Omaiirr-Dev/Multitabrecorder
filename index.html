@@ -106,13 +106,13 @@
                 this.errorHandlers = new Map();      // error handling
                 this.cleanup = this.cleanup.bind(this);
                 
-                // Simplified initialization - no auto-save preferences
+                // Clean initialization - no auto-save references
                 this.initializeEventListeners();
                 this.initializeQualitySlider();
             }
 
             initializeEventListeners() {
-                // Clean up when page closes
+                // Only essential event listeners - no auto-save toggle
                 window.addEventListener('beforeunload', this.cleanup);
                 window.addEventListener('unload', this.cleanup);
             }
@@ -738,7 +738,6 @@
             const qualitySlider = document.getElementById('video-quality');
             const qualityValues = ['4k', '1440p', '1080p', '720p', '480p'];
             const selectedQuality = qualityValues[parseInt(qualitySlider.value)];
-            const autoSave = true; // Always auto-save now
             const mimeType = getMimeTypeForFormat(selectedFormat);
             const blob = new Blob(recordedChunks, { type: mimeType });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -789,24 +788,10 @@
                 localStorage.setItem(CONFIG.STORAGE_KEYS.RECORDINGS, JSON.stringify(recordings));
                 loadSavedRecordings();
                 
-                // Always auto-save since there's no toggle
-                if (autoSave) {
-                    try {
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(a.href);
-                        stateManager.showAlert(`Screen recording ${recordingId} auto-saved to your device`);
-                    } catch (downloadError) {
-                        console.error('Auto-save failed:', downloadError);
-                        stateManager.showAlert(`Recording saved but auto-download failed: ${filename}`, 'error');
-                    }
-                } else {
-                    stateManager.showAlert(`Screen recording ${recordingId} saved: ${filename}`);
-                }
+                // REMOVED: All auto-save/auto-download logic
+                // Videos are now only saved to localStorage
+                // Users must manually click "Download" to get the file
+                stateManager.showAlert(`Screen recording ${recordingId} saved: ${filename}`);
             };
             
             reader.onerror = function() {
