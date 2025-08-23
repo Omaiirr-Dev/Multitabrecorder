@@ -41,10 +41,9 @@
             
             <div class="input-group">
                 <label for="auto-save">Auto-save to device:</label>
-                <div class="toggle-switch" id="auto-save-toggle">
-                    <input type="checkbox" id="auto-save" checked>
-                    <span class="slider"></span>
-                </div>
+                <button id="auto-save" class="toggle-btn" data-enabled="true">
+                    <span class="toggle-text">ON</span>
+                </button>
             </div>
             
             <div class="button-group">
@@ -123,14 +122,22 @@
                     const preferences = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USER_PREFERENCES) || '{}');
                     this.autoSaveEnabled = preferences.autoSave !== undefined ? preferences.autoSave : true;
                     
-                    // Update the checkbox to match saved setting
-                    const autoSaveCheckbox = document.getElementById('auto-save');
-                    if (autoSaveCheckbox) {
-                        autoSaveCheckbox.checked = this.autoSaveEnabled;
-                    }
+                    // Update the toggle button to match saved setting
+                    this.updateToggleButton();
                 } catch (error) {
                     console.error('Oops, couldn\'t load your preferences:', error);
                     this.autoSaveEnabled = true;
+                    this.updateToggleButton();
+                }
+            }
+
+            updateToggleButton() {
+                const toggleBtn = document.getElementById('auto-save');
+                const toggleText = toggleBtn?.querySelector('.toggle-text');
+                
+                if (toggleBtn && toggleText) {
+                    toggleBtn.setAttribute('data-enabled', this.autoSaveEnabled.toString());
+                    toggleText.textContent = this.autoSaveEnabled ? 'ON' : 'OFF';
                 }
             }
 
@@ -147,10 +154,10 @@
             }
 
             initializeEventListeners() {
-                // Listen for auto-save toggle changes
+                // Listen for auto-save toggle clicks
                 const autoSaveToggle = document.getElementById('auto-save');
                 if (autoSaveToggle) {
-                    autoSaveToggle.addEventListener('change', this.handleAutoSaveToggle.bind(this));
+                    autoSaveToggle.addEventListener('click', this.handleAutoSaveToggle.bind(this));
                 }
                 
                 // Clean up when page closes
@@ -171,8 +178,9 @@
                 }
             }
 
-            handleAutoSaveToggle(event) {
-                this.autoSaveEnabled = event.target.checked;
+            handleAutoSaveToggle() {
+                this.autoSaveEnabled = !this.autoSaveEnabled;
+                this.updateToggleButton();
                 this.saveUserPreferences();
                 
                 const message = this.autoSaveEnabled ? 

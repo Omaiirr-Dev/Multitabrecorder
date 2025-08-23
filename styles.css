@@ -1,472 +1,98 @@
-/*
- * ========================================
- * MULTI-SCREEN RECORDER - STYLESHEET
- * ========================================
- * 
- * This CSS file handles all the visual styling for our screen recording app.
- * We're going for a dark theme that's easy on the eyes during long recording sessions.
- * The layout is responsive and works well on both desktop and mobile devices.
- */
-
-/* === GLOBAL RESET & BASE STYLES === */
-/* Start with a clean slate - remove default browser spacing and set consistent box sizing */
-* { 
-    margin: 0; 
-    padding: 0; 
-    box-sizing: border-box; 
-}
-
-/* Main body styling - dark theme with a nice font stack */
-body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    background: #1a1a1a;  /* Dark background that's not pure black */
-    color: #e0e0e0;        /* Light text that's easy to read */
-    line-height: 1.6;      /* Comfortable line spacing */
-    min-height: 100vh;     /* Always fill the full viewport height */
-}
-
-/* === LAYOUT CONTAINERS === */
-/* Main container that centers everything and adds some breathing room */
-.container { 
-    max-width: 1200px; 
-    margin: 0 auto; 
-    padding: 20px; 
-}
-
-/* === TYPOGRAPHY === */
-/* Main heading - big and centered to grab attention */
-h1 { 
-    text-align: center; 
-    color: #ffffff; 
-    margin-bottom: 30px; 
-    font-weight: 300;    /* Light weight looks more modern */
-    font-size: 2.5em; 
-}
-
-/* Section headings with a subtle underline */
-h2 { 
-    color: #ffffff; 
-    margin-bottom: 20px; 
-    font-weight: 400; 
-    font-size: 1.4em; 
-    border-bottom: 2px solid #333333;  /* Subtle divider line */
-    padding-bottom: 10px; 
-}
-
-/* === CARD LAYOUT === */
-/* Each section gets its own card with rounded corners and subtle shadows */
-.card { 
-    background: #252525;     /* Slightly lighter than body background */
-    border-radius: 8px; 
-    padding: 30px; 
-    margin-bottom: 25px; 
-    border: 1px solid #333333; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);  /* Soft shadow for depth */
-}
-
-/* === FORM ELEMENTS === */
-/* Input groups - each form field gets consistent spacing and alignment */
-.input-group { 
-    margin-bottom: 20px; 
-    display: flex; 
-    align-items: center; 
-    gap: 15px; 
-}
-
-/* Labels - consistent width so everything lines up nicely */
-label { 
-    color: #b0b0b0; 
-    font-weight: 500; 
-    min-width: 180px;  /* Fixed width for alignment */
-    font-size: 14px; 
-}
-
-/* Input fields and dropdowns - dark theme with focus states */
-input[type="number"], select { 
-    background: #333333; 
-    border: 1px solid #505050; 
-    color: #e0e0e0; 
-    padding: 10px 12px; 
-    border-radius: 4px; 
-    font-size: 14px; 
-    min-width: 200px; 
-    transition: border-color 0.2s ease;  /* Smooth focus transition */
-}
-
-/* Focus states - green accent color when user clicks into fields */
-input[type="number"]:focus, select:focus { 
-    outline: none; 
-    border-color: #388e3c; 
-    box-shadow: 0 0 0 2px rgba(56, 142, 60, 0.2);  /* Subtle glow effect */
-}
-
-/* === BUTTONS === */
-/* Button container - flexible layout that wraps on smaller screens */
-.button-group { 
-    display: flex; 
-    gap: 12px; 
-    flex-wrap: wrap; 
-    margin-top: 25px; 
-}
-
-/* Base button styling - consistent padding and smooth hover effects */
-button { 
-    padding: 12px 24px; 
-    border: none; 
-    border-radius: 4px; 
-    cursor: pointer; 
-    font-size: 14px; 
-    font-weight: 500; 
-    transition: all 0.2s ease;  /* Smooth hover animations */
-    min-width: 140px; 
-}
-
-/* Success buttons (green) - for positive actions like "Start Recording" */
-.btn-success { 
-    background: #388e3c; 
-    color: white; 
-}
-.btn-success:hover:not(:disabled) { 
-    background: #2e7d32; 
-    transform: translateY(-1px);  /* Subtle lift effect on hover */
-}
-
-/* Danger buttons (red) - for destructive actions like "Stop" or "Delete" */
-.btn-danger { 
-    background: #d32f2f; 
-    color: white; 
-}
-.btn-danger:hover:not(:disabled) { 
-    background: #c62828; 
-    transform: translateY(-1px); 
-}
-
-/* Primary buttons (blue) - for main actions */
-.btn-primary { 
-    background: #1976d2; 
-    color: white; 
-}
-.btn-primary:hover:not(:disabled) { 
-    background: #1565c0; 
-    transform: translateY(-1px); 
-}
-
-/* Disabled button state - faded and no interactions */
-button:disabled { 
-    opacity: 0.6; 
-    cursor: not-allowed; 
-    transform: none !important; 
-}
-
-/* === SPECIALIZED BUTTONS === */
-/* Small action buttons for individual recordings */
-.remove-btn { 
-    background: #f44336; 
-    color: white; 
-    padding: 8px 16px; 
-    font-size: 12px; 
-    min-width: auto; 
-}
+/* Extracted styles from the previous inline CSS */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #e0e0e0; line-height: 1.6; min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+h1 { text-align: center; color: #ffffff; margin-bottom: 30px; font-weight: 300; font-size: 2.5em; }
+h2 { color: #ffffff; margin-bottom: 20px; font-weight: 400; font-size: 1.4em; border-bottom: 2px solid #333333; padding-bottom: 10px; }
+.card { background: #252525; border-radius: 8px; padding: 30px; margin-bottom: 25px; border: 1px solid #333333; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+.input-group { margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+label { color: #b0b0b0; font-weight: 500; min-width: 180px; font-size: 14px; }
+input[type="number"], select { background: #333333; border: 1px solid #505050; color: #e0e0e0; padding: 10px 12px; border-radius: 4px; font-size: 14px; min-width: 200px; transition: border-color 0.2s ease; }
+input[type="number"]:focus, select:focus { outline: none; border-color: #388e3c; box-shadow: 0 0 0 2px rgba(56, 142, 60, 0.2); }
+.button-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 25px; }
+button { padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s ease; min-width: 140px; }
+.btn-success { background: #388e3c; color: white; }
+.btn-success:hover:not(:disabled) { background: #2e7d32; transform: translateY(-1px); }
+.btn-danger { background: #d32f2f; color: white; }
+.btn-danger:hover:not(:disabled) { background: #c62828; transform: translateY(-1px); }
+.btn-primary { background: #1976d2; color: white; }
+.btn-primary:hover:not(:disabled) { background: #1565c0; transform: translateY(-1px); }
+button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+.remove-btn { background: #f44336; color: white; padding: 8px 16px; font-size: 12px; min-width: auto; }
 .remove-btn:hover { background: #d32f2f; }
-
-.download-btn { 
-    background: #1976d2; 
-    color: white; 
-    padding: 8px 16px; 
-    font-size: 12px; 
-    min-width: auto; 
-    margin-right: 8px; 
-}
+.download-btn { background: #1976d2; color: white; padding: 8px 16px; font-size: 12px; min-width: auto; margin-right: 8px; }
 .download-btn:hover { background: #1565c0; }
-
-.delete-btn { 
-    background: #f44336 !important; 
-}
+.delete-btn { background: #f44336 !important; }
 .delete-btn:hover { background: #d32f2f !important; }
+.recordings-list { max-height: 400px; overflow-y: auto; border: 1px solid #404040; border-radius: 4px; padding: 10px; background: #2a2a2a; }
+.recordings-list::-webkit-scrollbar { width: 8px; }
+.recordings-list::-webkit-scrollbar-track { background: #2a2a2a; }
+.recordings-list::-webkit-scrollbar-thumb { background: #505050; border-radius: 4px; }
+.recording-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; margin: 8px 0; background: #333333; border: 1px solid #404040; border-radius: 2px; transition: background-color 0.2s ease; }
+.recording-item:hover { background: #3a3a3a; }
+.toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; margin-left: auto; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); border-radius: 34px; user-select: none; }
+.slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.toggle-switch input:checked + .slider { background-color: #388e3c; box-shadow: 0 0 8px rgba(56, 142, 60, 0.3); }
+.toggle-switch input:focus + .slider { box-shadow: 0 0 1px #388e3c, 0 0 8px rgba(56, 142, 60, 0.3); }
+.toggle-switch input:checked + .slider:before { transform: translateX(26px); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.toggle-switch.disabled { opacity: 0.5; pointer-events: none; }
+.recording-info { flex-grow: 1; }
+.recording-name { font-weight: 500; color: #ffffff; margin-bottom: 4px; font-size: 14px; }
+.recording-details { font-size: 12px; color: #a0a0a0; }
+.status-display { padding: 15px; background: #2a2a2a; border-radius: 4px; border: 1px solid #404040; margin-bottom: 10px; font-weight: 500; }
+.recording-active { background: #1b2e1b !important; border-color: #2e5d2e !important; color: #81c784 !important; }
+.url-label { font-weight: 500; color: #ffffff; margin-bottom: 5px; }
+.status-text { color: #a0a0a0; font-size: 13px; margin-bottom: 10px; }
+.recording-status-item { background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; padding: 15px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+.recording-status-item.recording { border-left: 4px solid #28a745; }
+.recording-preview-container { position: relative; display: inline-block; border-radius: 8px; overflow: hidden; border: 2px solid #404040; transition: border-color 0.3s ease; }
+.recording-preview-container:hover { border-color: #388e3c; }
+.preview-video { width: 220px; height: 130px; object-fit: cover; display: block; background: #1a1a1a; }
+.preview-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.3); pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.recording-indicator { background: rgba(220, 53, 69, 0.9); color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+.recording-dot { width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.thumbnail-container { position: relative; display: inline-block; margin: 10px 0; }
+.thumbnail-image { width: 80px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #404040; margin-right: 10px; }
+.alert { padding: 12px 16px; margin: 15px 0; border-radius: 2px; font-weight: 400; font-size: 14px; }
+.alert-success { background: #1b2e1b; color: #81c784; border: 1px solid #2e5d2e; }
+.alert-error { background: #2e1b1b; color: #e57373; border: 1px solid #5d2e2e; }
 
-/* Orange rename button - stands out from other actions */
-.rename-btn {
-    background: #ff9800;
+/* Simple Toggle Button */
+.toggle-btn {
+    background: #388e3c;
     color: white;
     border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
+    padding: 8px 16px;
+    border-radius: 20px;
     cursor: pointer;
     font-size: 12px;
-    transition: background-color 0.2s ease;
-    font-weight: 500;
-}
-.rename-btn:hover {
-    background: #f57c00;
-}
-
-/* === RECORDINGS LIST === */
-/* Container for saved recordings - clean list without scrollbars */
-.recordings-list { 
-    max-height: none !important;     /* No height limit */
-    overflow: visible !important;    /* Show all recordings */
-    border: 1px solid #404040; 
-    border-radius: 4px; 
-    padding: 15px; 
-    background: #2a2a2a;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;  /* Space between recording items */
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 60px;
+    text-align: center;
 }
 
-/* Individual recording item - horizontal card layout */
-.recording-item {
-    background: #1a1a1a;
-    border: 1px solid #404040;
-    border-radius: 6px;
-    padding: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: border-color 0.2s ease;
-}
-.recording-item:hover {
-    border-color: #1976d2;  /* Blue highlight on hover */
+.toggle-btn[data-enabled="true"] {
+    background: #388e3c;
 }
 
-/* Recording item layout components */
-.recording-item-content {
-    display: flex;
-    align-items: center;
-    flex: 1;  /* Takes up remaining space */
-    gap: 12px;
-}
-.recording-item-info {
-    flex: 1;
-}
-.recording-item-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+.toggle-btn[data-enabled="false"] {
+    background: #666666;
 }
 
-/* === TOGGLE SWITCH === */
-/* Custom toggle switch for auto-save feature */
-.toggle-switch { 
-    position: relative; 
-    display: inline-block; 
-    width: 60px; 
-    height: 34px; 
-    margin-left: auto; 
+.toggle-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Hide the actual checkbox - we'll style our own */
-.toggle-switch input { 
-    opacity: 0; 
-    width: 0; 
-    height: 0; 
-    position: absolute; 
+.toggle-text {
+    display: block;
 }
 
-/* The slider track */
-.slider { 
-    position: absolute; 
-    cursor: pointer; 
-    top: 0; left: 0; right: 0; bottom: 0; 
-    background-color: #555; 
-    transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);  /* Smooth animation */
-    border-radius: 34px; 
-    user-select: none; 
-}
-
-/* The sliding circle */
-.slider:before { 
-    position: absolute; 
-    content: ""; 
-    height: 26px; width: 26px; 
-    left: 4px; bottom: 4px; 
-    background-color: white; 
-    transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); 
-    border-radius: 50%; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
-}
-
-/* When toggle is ON - green background and slide the circle */
-.toggle-switch input:checked + .slider { 
-    background-color: #388e3c; 
-    box-shadow: 0 0 8px rgba(56, 142, 60, 0.3); 
-}
-.toggle-switch input:checked + .slider:before { 
-    transform: translateX(26px); 
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3); 
-}
-
-/* Focus state for accessibility */
-.toggle-switch input:focus + .slider { 
-    box-shadow: 0 0 1px #388e3c, 0 0 8px rgba(56, 142, 60, 0.3); 
-}
-
-.toggle-switch.disabled { 
-    opacity: 0.5; 
-    pointer-events: none; 
-}
-
-/* === RECORDING STATUS DISPLAY === */
-/* Info display for individual recordings */
-.recording-info { flex-grow: 1; }
-.recording-name { 
-    font-weight: 500; 
-    color: #ffffff; 
-    margin-bottom: 4px; 
-    font-size: 14px; 
-}
-.recording-details { 
-    font-size: 12px; 
-    color: #a0a0a0;  /* Muted color for secondary info */
-}
-
-/* Overall status display */
-.status-display { 
-    padding: 15px; 
-    background: #2a2a2a; 
-    border-radius: 4px; 
-    border: 1px solid #404040; 
-    margin-bottom: 10px; 
-    font-weight: 500; 
-}
-
-/* When actively recording - green theme */
-.recording-active { 
-    background: #1b2e1b !important; 
-    border-color: #2e5d2e !important; 
-    color: #81c784 !important; 
-}
-
-.url-label { 
-    font-weight: 500; 
-    color: #ffffff; 
-    margin-bottom: 5px; 
-}
-.status-text { 
-    color: #a0a0a0; 
-    font-size: 13px; 
-    margin-bottom: 10px; 
-}
-
-/* === ACTIVE RECORDING ITEMS === */
-/* Cards for currently recording screens */
-.recording-status-item { 
-    background: #2a2a2a; 
-    border: 1px solid #404040; 
-    border-radius: 4px; 
-    padding: 15px; 
-    margin: 10px 0; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    flex-wrap: wrap; 
-    gap: 15px; 
-}
-
-/* Green left border when actively recording */
-.recording-status-item.recording { 
-    border-left: 4px solid #28a745; 
-}
-
-/* === VIDEO PREVIEW === */
-/* Container for live video preview during recording */
-.recording-preview-container { 
-    position: relative; 
-    display: inline-block; 
-    border-radius: 8px; 
-    overflow: hidden; 
-    border: 2px solid #404040; 
-    transition: border-color 0.3s ease; 
-}
-.recording-preview-container:hover { 
-    border-color: #388e3c;  /* Green highlight on hover */
-}
-
-/* The actual video element */
-.preview-video { 
-    width: 220px; 
-    height: 130px; 
-    object-fit: cover;  /* Crop to fit without stretching */
-    display: block; 
-    background: #1a1a1a; 
-}
-
-/* Overlay on top of video with recording indicator */
-.preview-overlay { 
-    position: absolute; 
-    top: 0; left: 0; 
-    width: 100%; height: 100%; 
-    background: rgba(0, 0, 0, 0.3);  /* Semi-transparent dark overlay */
-    pointer-events: none;  /* Don't block video interactions */
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-}
-
-/* "REC" indicator with pulsing dot */
-.recording-indicator { 
-    background: rgba(220, 53, 69, 0.9);  /* Red background */
-    color: white; 
-    padding: 4px 8px; 
-    border-radius: 12px; 
-    font-size: 11px; 
-    font-weight: bold; 
-    display: flex; 
-    align-items: center; 
-    gap: 5px; 
-}
-
-/* Pulsing red dot animation */
-.recording-dot { 
-    width: 8px; 
-    height: 8px; 
-    background: white; 
-    border-radius: 50%; 
-    animation: pulse 1.5s infinite; 
-}
-@keyframes pulse { 
-    0%, 100% { opacity: 1; } 
-    50% { opacity: 0.3; } 
-}
-
-/* === THUMBNAILS === */
-/* Small preview images for saved recordings */
-.thumbnail-container { 
-    position: relative; 
-    display: inline-block; 
-    margin: 10px 0; 
-}
-.thumbnail-image { 
-    width: 80px; 
-    height: 45px; 
-    object-fit: cover; 
-    border-radius: 4px; 
-    border: 1px solid #404040; 
-    margin-right: 10px; 
-}
-
-/* === ALERT MESSAGES === */
-/* Notification popups for user feedback */
-.alert { 
-    padding: 12px 16px; 
-    margin: 15px 0; 
-    border-radius: 2px; 
-    font-weight: 400; 
-    font-size: 14px; 
-}
-.alert-success { 
-    background: #1b2e1b; 
-    color: #81c784; 
-    border: 1px solid #2e5d2e; 
-}
-.alert-error { 
-    background: #2e1b1b; 
-    color: #e57373; 
-    border: 1px solid #5d2e2e; 
-}
-
-/* === QUALITY SLIDER === */
-/* Custom slider for video quality selection */
+/* Compact Quality Slider */
 .quality-slider-container {
     display: flex;
     align-items: center;
@@ -474,19 +100,17 @@ button:disabled {
     width: 100%;
 }
 
-/* The slider track */
 .quality-slider {
     width: 200px;
     height: 4px;
     border-radius: 2px;
     background: #404040;
     outline: none;
-    -webkit-appearance: none;  /* Remove default browser styling */
+    -webkit-appearance: none;
     appearance: none;
     cursor: pointer;
 }
 
-/* Slider thumb (the draggable circle) - WebKit browsers */
 .quality-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -499,7 +123,6 @@ button:disabled {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Slider thumb - Firefox */
 .quality-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
@@ -510,72 +133,93 @@ button:disabled {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Quality display text */
 .quality-display {
     min-width: 100px;
     text-align: left;
 }
+
 #quality-text {
     font-size: 13px;
     color: #1976d2;
     font-weight: 500;
 }
 
-/* === CONTAINER LAYOUTS === */
-/* Active recordings container - no scrolling, shows everything */
+/* Fixed container - no scrolling, shows all videos */
 .stream-urls-container { 
     margin: 20px 0; 
     padding: 15px; 
     background: #2a2a2a; 
     border-radius: 8px;
-    max-height: none !important;    /* Override any height limits */
-    overflow: visible !important;   /* Show all content */
+    max-height: none !important;
+    overflow: visible !important;
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.stream-urls-container h3 { 
-    color: #ffffff; 
-    margin-bottom: 15px; 
-    font-size: 1.1em; 
-    font-weight: 400; 
+/* Clean recordings list - no scrolling */
+.recordings-list { 
+    max-height: none !important;
+    overflow: visible !important;
+    border: 1px solid #404040; 
+    border-radius: 4px; 
+    padding: 15px; 
+    background: #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-/* === RESPONSIVE DESIGN === */
-/* Mobile-friendly adjustments for smaller screens */
-@media (max-width: 768px) { 
-    .container { padding: 15px; } 
-    .card { padding: 20px; } 
-    .button-group { flex-direction: column; }  /* Stack buttons vertically */
-    button { width: 100%; }  /* Full-width buttons on mobile */
-    .recording-item { 
-        flex-direction: column; 
-        align-items: flex-start; 
-        gap: 12px; 
-    } 
-    .recording-item > div:last-child { 
-        align-self: flex-end; 
-    } 
-    .input-group { 
-        flex-direction: column; 
-        align-items: flex-start; 
-        gap: 8px; 
-    } 
-    label { min-width: auto; }  /* Remove fixed width on mobile */
-    .preview-video { 
-        width: 180px; 
-        height: 100px; 
-    } 
-    .quality-slider-container { 
-        flex-direction: column; 
-        align-items: flex-start; 
-        gap: 8px; 
-    } 
-    .quality-slider { width: 100%; } 
+/* Clean recording item layout */
+.recording-item {
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s ease;
 }
 
-/* Force the recording dot animation to work properly */
-.recording-dot { 
-    animation: pulse 1.5s infinite !important; 
+.recording-item:hover {
+    border-color: #1976d2;
 }
+
+.recording-item-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 12px;
+}
+
+.recording-item-info {
+    flex: 1;
+}
+
+.recording-item-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Orange rename button with white text */
+.rename-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s ease;
+    font-weight: 500;
+}
+
+.rename-btn:hover {
+    background: #f57c00;
+}
+
+.stream-urls-container h3 { color: #ffffff; margin-bottom: 15px; font-size: 1.1em; font-weight: 400; }
+@media (max-width: 768px) { .container { padding: 15px; } .card { padding: 20px; } .button-group { flex-direction: column; } button { width: 100%; } .recording-item { flex-direction: column; align-items: flex-start; gap: 12px; } .recording-item > div:last-child { align-self: flex-end; } .input-group { flex-direction: column; align-items: flex-start; gap: 8px; } label { min-width: auto; } .preview-video { width: 180px; height: 100px; } .quality-slider-container { flex-direction: column; align-items: flex-start; gap: 8px; } .quality-slider { width: 100%; } }
+.recording-dot { animation: pulse 1.5s infinite !important; }
