@@ -542,7 +542,7 @@ function updateRecordingsPreview() {
                     </div>
                 </div>
                 <div class="filename-edit-container">
-                    <label class="filename-label">Name: <span class="edit-hint">(click to edit)</span></label>
+                    <label class="filename-label">Site name <span class="edit-hint">(click to edit)</span></label>
                     <input type="text" 
                            id="filename-input-${id}" 
                            class="filename-input editable-indicator" 
