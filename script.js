@@ -533,7 +533,13 @@ function updateRecordingsPreview() {
                         <div class="recording-dot"></div>
                         <span>REC</span>
                     </div>
-                    <div class="recording-time">${formatTime((Date.now() - recording.startTime) / 1000)}</div>
+                    <div class="recording-time">
+                        ${formatTime((Date.now() - recording.startTime) / 1000)} elapsed
+                        <br>
+                        <span style="font-size: 11px; color: #888;">
+                            ${formatTime(Math.max(0, (recording.duration / 1000) - ((Date.now() - recording.startTime) / 1000)))} remaining
+                        </span>
+                    </div>
                 </div>
                 <div class="filename-edit-container">
                     <label class="filename-label">Name: <span class="edit-hint">(click to edit)</span></label>
@@ -678,16 +684,10 @@ async function updateRecordingId(recordingId, newId) {
          
          await stateManager.dbManager.saveRecording(updatedRecording);
         
-        // Refresh the recordings list to show the new filename
-        await loadSavedRecordings();
-        
-        // Restore the input value and focus if it was focused
-        const newInput = document.getElementById(`id-input-${recordingId}`);
-        if (newInput) {
-            newInput.value = newId;
-            if (isDuplicate) {
-                newInput.classList.add('duplicate');
-            }
+        // Update the filename display without full refresh
+        const recordingNameElement = document.querySelector(`#id-input-${recordingId}`).closest('.recording-item').querySelector('.recording-name');
+        if (recordingNameElement) {
+            recordingNameElement.textContent = newFilename;
         }
         
         console.log(`Updated recording ${recordingId} filename to: ${newFilename}`);
@@ -852,38 +852,13 @@ function stopStatusUpdates() {
 }
 
 function updateStatusDisplay() {
-    const overallStatus = document.getElementById('overall-status');
-    const individualStatuses = document.getElementById('individual-statuses');
-    
-    if (stateManager.screenRecordings.size === 0) {
-        overallStatus.textContent = 'Ready to record screens';
-        overallStatus.classList.remove('recording-active');
-        individualStatuses.innerHTML = '';
-        stopStatusUpdates();
-        return;
-    }
-    
-    overallStatus.textContent = `Recording ${stateManager.screenRecordings.size} screens...`;
-    overallStatus.classList.add('recording-active');
-    
-    // Update individual statuses
-    individualStatuses.innerHTML = '';
-    stateManager.screenRecordings.forEach((recording, id) => {
-        const statusItem = document.createElement('div');
-        statusItem.className = 'recording-status-item recording';
-        
-        const recordingElapsed = (Date.now() - recording.startTime) / 1000;
-        const remaining = Math.max(0, (recording.duration / 1000) - recordingElapsed);
-        
-        statusItem.innerHTML = `
-            <div class="url-label">${recording.tabTitle || 'Screen Recording'} ${id}</div>
-            <div class="status-text">Recording... ${formatTime(recordingElapsed)} elapsed, ${formatTime(remaining)} remaining</div>
-        `;
-        
-        individualStatuses.appendChild(statusItem);
-    });
-    
+    // Simplified status update - just update the recordings preview
     updateRecordingsPreview();
+    
+    // Stop status updates if no recordings are active
+    if (stateManager.screenRecordings.size === 0) {
+        stopStatusUpdates();
+    }
 }
 
 function formatTime(seconds) {
@@ -1160,6 +1135,21 @@ async function loadSavedRecordings() {
             return;
         }
         
+        // Store current input values and focus state before updating
+        const inputStates = new Map();
+        recordings.forEach(recording => {
+            const existingInput = document.getElementById(`id-input-${recording.id}`);
+            if (existingInput) {
+                inputStates.set(recording.id, {
+                    value: existingInput.value,
+                    focused: document.activeElement === existingInput,
+                    selectionStart: existingInput.selectionStart,
+                    selectionEnd: existingInput.selectionEnd,
+                    hasDuplicateClass: existingInput.classList.contains('duplicate')
+                });
+            }
+        });
+        
         // Calculate total storage usage
         let totalSize = 0;
         recordings.forEach(recording => totalSize += recording.size || 0);
@@ -1219,6 +1209,7 @@ async function loadSavedRecordings() {
                                id="id-input-${recording.id}" 
                                class="recording-id-input" 
                                placeholder="Enter ID"
+                               value="${inputStates.get(recording.id)?.value || ''}"
                                onblur="updateRecordingId(${recording.id}, this.value)">
                     </div>
                     <button class="crop-btn" onclick="openCropModal(${recording.id})" title="Crop this video">
@@ -1240,6 +1231,26 @@ async function loadSavedRecordings() {
             `;
             
             recordingsList.appendChild(recordingDiv);
+            
+            // Restore input state if it existed
+            const storedState = inputStates.get(recording.id);
+            if (storedState) {
+                const newInput = document.getElementById(`id-input-${recording.id}`);
+                if (newInput) {
+                    // Restore duplicate class if it was present
+                    if (storedState.hasDuplicateClass) {
+                        newInput.classList.add('duplicate');
+                    }
+                    
+                    // Restore focus and selection if it was focused
+                    if (storedState.focused) {
+                        setTimeout(() => {
+                            newInput.focus();
+                            newInput.setSelectionRange(storedState.selectionStart, storedState.selectionEnd);
+                        }, 0);
+                    }
+                }
+            }
         });
         
     } catch (error) {
