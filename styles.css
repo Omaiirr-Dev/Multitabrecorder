@@ -275,6 +275,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
     box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
 }
 
+.recording-id-input:not(:focus) {
+    box-shadow: none;
+}
+
 .recording-id-input::placeholder {
     color: #888888;
     font-style: italic;
@@ -722,7 +726,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
     margin-bottom: 15px;
 }
 
-.warning-message {
+.crop-warning-notice .warning-message {
     margin: 0;
     font-size: 13px;
     color: #ffc107;
@@ -731,6 +735,30 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
     align-items: center;
     gap: 8px;
     line-height: 1.4;
+}
+
+/* Compiler Warning Notice */
+.compiler-controls .warning-message {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.4;
+}
+
+.compiler-controls .warning-icon {
+    font-size: 16px;
+}
+
+.compiler-controls .warning-text {
+    margin: 0;
+    font-size: 13px;
+    color: #ffc107;
+    font-weight: 500;
 }
 
 /* Remove all toggle button related styles */
@@ -954,5 +982,317 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
     
     .crop-actions button {
         width: 100%;
+    }
+}
+
+/* Compiler Tool Styles */
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.collapsible-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    margin: -8px -12px;
+}
+
+.collapsible-header h2 {
+    margin: 0;
+    transition: color 0.2s ease;
+}
+
+.collapsible-header:hover h2 {
+    color: #ff6b35;
+}
+
+.collapse-arrow {
+    font-size: 16px;
+    color: #b0b0b0;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.collapsible-header:hover .collapse-arrow {
+    color: #ff6b35;
+}
+
+.collapse-arrow.expanded {
+    transform: rotate(180deg);
+}
+
+.collapsible-content {
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    opacity: 0;
+    max-height: 0;
+}
+
+.collapsible-content.show {
+    opacity: 1;
+    max-height: 1000px;
+}
+
+.compiler-controls {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #404040;
+}
+
+.time-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.time-selector label {
+    color: #b0b0b0;
+    font-weight: 500;
+    min-width: 100px;
+    font-size: 14px;
+}
+
+.time-dropdown {
+    background: #333333;
+    border: 1px solid #505050;
+    color: #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 150px;
+    transition: border-color 0.2s ease;
+}
+
+.time-dropdown:focus {
+    outline: none;
+    border-color: #ff6b35;
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+}
+
+.compiler-table-container {
+    background: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #404040;
+    overflow: hidden;
+}
+
+.compiler-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Courier New', monospace;
+}
+
+.compiler-table th {
+    background: #333333;
+    color: #ffffff;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #404040;
+}
+
+.compiler-table td {
+    padding: 10px 15px;
+    color: #e0e0e0;
+    border-bottom: 1px solid #404040;
+    font-size: 13px;
+    word-break: break-all;
+    background: #252525;
+}
+
+.compiler-table tbody tr:hover td {
+    background: #2d2d2d;
+}
+
+.compiler-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.command-text {
+    font-family: 'Courier New', monospace;
+    color: #4caf50;
+    font-weight: 500;
+    user-select: all;
+    cursor: text;
+}
+
+.command-text:hover {
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 3px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
+
+.command-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.copy-btn {
+    background: #333333;
+    border: 1px solid #505050;
+    color: #b0b0b0;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    background: #ff6b35;
+    border-color: #ff6b35;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+}
+
+.copy-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(255, 107, 53, 0.4);
+}
+
+.copy-btn svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+}
+
+.copy-btn:hover svg {
+    transform: scale(1.1);
+}
+
+/* Setup Commands Styles */
+.setup-commands-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #404040;
+}
+
+.setup-commands-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: #333333;
+    border: 1px solid #505050;
+    color: #e0e0e0;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.setup-commands-btn:hover {
+    background: rgba(255, 107, 53, 0.1);
+    border-color: #ff6b35;
+    color: #ff6b35;
+}
+
+.setup-arrow {
+    font-size: 14px;
+    transition: transform 0.2s ease;
+}
+
+.setup-arrow.expanded {
+    transform: rotate(180deg);
+}
+
+.setup-commands-content {
+    margin-top: 10px;
+    transition: all 0.3s ease;
+}
+
+.commands-textbox {
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+}
+
+.command-line {
+    color: #4caf50;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 5px 0;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: all;
+}
+
+.command-line:hover {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.command-note {
+    color: #888888;
+    font-size: 12px;
+    font-style: italic;
+    margin: 8px 0 3px 0;
+    padding: 3px 6px;
+}
+
+/* Responsive Design for Compiler Tool */
+@media (max-width: 768px) {
+    .compiler-controls {
+        padding: 12px;
+    }
+    
+    .time-selector {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .time-selector label {
+        min-width: auto;
+    }
+    
+    .time-dropdown {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .compiler-table {
+        font-size: 12px;
+    }
+    
+    .compiler-table th,
+    .compiler-table td {
+        padding: 8px 10px;
+    }
+    
+    .command-text {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    
+    .setup-commands-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .command-line {
+        font-size: 12px;
     }
 }

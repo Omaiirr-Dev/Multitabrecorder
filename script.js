@@ -690,6 +690,11 @@ async function updateRecordingId(recordingId, newId) {
             recordingNameElement.textContent = newFilename;
         }
         
+        // Update compiler table in real-time
+        if (typeof updateCompilerTable === 'function') {
+            updateCompilerTable();
+        }
+        
         console.log(`Updated recording ${recordingId} filename to: ${newFilename}`);
         
     } catch (error) {
@@ -1040,7 +1045,7 @@ async function saveScreenRecording(recordedChunks, recordingId, startTime, tabTi
         const currentUsage = await stateManager.dbManager.getStorageUsage();
         const newSize = blob.size;
         const totalSize = currentUsage + newSize;
-        const maxSize = 200 * 1024 * 1024; // 200MB limit
+        const maxSize = 1024 * 1024 * 1024; // 1GB limit (1024MB)
         
         if (totalSize > maxSize) {
             const usageMB = (currentUsage / (1024 * 1024)).toFixed(1);
@@ -1058,7 +1063,7 @@ async function saveScreenRecording(recordedChunks, recordingId, startTime, tabTi
         
         const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
         const totalUsageMB = (totalSize / (1024 * 1024)).toFixed(1);
-        stateManager.showAlert(`Recording saved: ${filename} (${sizeMB}MB). Total storage: ${totalUsageMB}/200MB`);
+        stateManager.showAlert(`Recording saved: ${filename} (${sizeMB}MB). Total storage: ${totalUsageMB}/1024MB`);
         
     } catch (error) {
         console.error('Failed to save recording:', error);
@@ -1118,6 +1123,10 @@ async function clearAllSavedRecordings() {
     try {
         await stateManager.dbManager.clearAllRecordings();
         await loadSavedRecordings();
+        // Update compiler table in real-time
+        if (typeof updateCompilerTable === 'function') {
+            updateCompilerTable();
+        }
         stateManager.showAlert('All saved recordings deleted');
     } catch (error) {
         console.error('Clear all failed:', error);
@@ -1157,7 +1166,7 @@ async function loadSavedRecordings() {
         
         recordingsList.innerHTML = `
             <div style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; border: 1px solid #404040;">
-                <strong>Storage Usage: ${totalSizeMB}/200 MB (${recordings.length} recordings)</strong>
+                <strong>Storage Usage: ${totalSizeMB}/1024 MB (${recordings.length} recordings)</strong>
             </div>
         `;
         
@@ -1254,10 +1263,15 @@ async function loadSavedRecordings() {
         });
         
     } catch (error) {
-        console.error('Failed to load recordings:', error);
-        document.getElementById('recordings-list').innerHTML = '<p>Error loading recordings.</p>';
+            console.error('Failed to load recordings:', error);
+            document.getElementById('recordings-list').innerHTML = '<p>Error loading recordings.</p>';
+        }
+        
+        // Update compiler table when recordings change
+        if (typeof updateCompilerTable === 'function') {
+            updateCompilerTable();
+        }
     }
-}
 
 async function downloadRecordingFromDB(id) {
     try {
@@ -1287,6 +1301,10 @@ async function deleteRecordingFromDB(id) {
     try {
         await stateManager.dbManager.deleteRecording(id);
         await loadSavedRecordings();
+        // Update compiler table in real-time
+        if (typeof updateCompilerTable === 'function') {
+            updateCompilerTable();
+        }
         stateManager.showAlert('Recording deleted');
     } catch (error) {
         console.error('Delete failed:', error);
@@ -1322,6 +1340,10 @@ async function renameRecording(id) {
                 await stateManager.dbManager.saveRecording(recording);
                 
                 await loadSavedRecordings();
+                // Update compiler table in real-time
+                if (typeof updateCompilerTable === 'function') {
+                    updateCompilerTable();
+                }
                 stateManager.showAlert(`Recording renamed to: ${newFilename}`);
             } else {
                 stateManager.showAlert('Invalid filename. Please use only letters, numbers, underscores, and hyphens.', 'error');
@@ -1622,11 +1644,8 @@ async function processSimpleCrop(videoBlob, cropParams) {
         video.muted = true;
         video.preload = 'metadata';
         
-        // Set timeout for large videos
-        const timeout = setTimeout(() => {
-            URL.revokeObjectURL(video.src);
-            reject(new Error('Video processing timeout. Try with a smaller video or shorter duration.'));
-        }, 300000); // 5 minute timeout
+        // Remove timeout - allow unlimited processing time
+        // Processing will continue until completion regardless of duration
         
         video.onloadedmetadata = () => {
             try {
@@ -1638,7 +1657,6 @@ async function processSimpleCrop(videoBlob, cropParams) {
                 const newHeight = originalHeight - top - bottom;
                 
                 if (newWidth <= 0 || newHeight <= 0) {
-                    clearTimeout(timeout);
                     URL.revokeObjectURL(video.src);
                     reject(new Error('Invalid crop dimensions. Check your crop values.'));
                     return;
@@ -1646,7 +1664,6 @@ async function processSimpleCrop(videoBlob, cropParams) {
                 
                 // Check if resulting video would be too large
                 if (newWidth > 4000 || newHeight > 4000) {
-                    clearTimeout(timeout);
                     URL.revokeObjectURL(video.src);
                     reject(new Error('Resulting video dimensions too large. Try smaller crop area.'));
                     return;
@@ -1660,17 +1677,18 @@ async function processSimpleCrop(videoBlob, cropParams) {
                 
                 // Set up MediaRecorder with optimized settings for faster processing
                 const stream = canvas.captureStream(30); // Limited to 30fps for performance
-                let mimeType = 'video/webm;codecs=vp9';
+                // Prefer VP8 for faster encoding over VP9
+                let mimeType = 'video/webm;codecs=vp8';
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'video/webm;codecs=vp8';
+                    mimeType = 'video/webm;codecs=vp9';
                     if (!MediaRecorder.isTypeSupported(mimeType)) {
                         mimeType = 'video/webm';
                     }
                 }
                 
                 const recorder = new MediaRecorder(stream, {
-                    mimeType: mimeType,
-                    videoBitsPerSecond: Math.min(2000000, 800000 * (newWidth * newHeight) / (1920 * 1080)) // Reduced bitrate for faster processing
+                    mimeType: mimeType
+                    // No bitrate limit - use browser's default high-quality encoding to match original recordings
                 });
                 
                 const chunks = [];
@@ -1683,7 +1701,6 @@ async function processSimpleCrop(videoBlob, cropParams) {
                 };
                 
                 recorder.onstop = () => {
-                     clearTimeout(timeout);
                      try {
                          // Complete the progress bar
                          if (window.cropProgressBar && window.cropProgressText) {
@@ -1712,15 +1729,14 @@ async function processSimpleCrop(videoBlob, cropParams) {
                  };
                 
                 recorder.onerror = (event) => {
-                     clearTimeout(timeout);
                      URL.revokeObjectURL(video.src);
                      window.cropProgressBar = null;
                      window.cropProgressText = null;
                      reject(new Error('Recording failed: ' + (event.error?.message || 'Unknown error')));
                  };
                 
-                // Start recording
-                recorder.start(1000); // Collect data every second
+                // Start recording with faster data collection
+                recorder.start(500); // Collect data every 500ms for faster processing
                 
                 let lastRenderTime = 0;
                 const targetFrameTime = 1000 / 30; // 30fps = ~33.33ms per frame
@@ -1752,9 +1768,9 @@ async function processSimpleCrop(videoBlob, cropParams) {
                                  }
                              }
                              
-                             // Memory management for very long videos
-                             if (frameCount % 300 === 0 && window.gc) {
-                                 window.gc(); // Force garbage collection if available
+                             // Optimized memory management for faster processing
+                             if (frameCount % 600 === 0 && window.gc) {
+                                 window.gc(); // Less frequent garbage collection for better performance
                              }
                              
                          } catch (drawError) {
@@ -1840,7 +1856,231 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         await stateManager.dbManager.initDB();
         await loadSavedRecordings();
+        initializeCompilerTool();
     } catch (error) {
         console.error('Initialization failed:', error);
     }
 });
+
+// Compiler Tool Functions
+function toggleCompilerTool() {
+    const content = document.getElementById('compiler-content');
+    const arrow = document.getElementById('compiler-arrow');
+    
+    if (content.style.display === 'none' || !content.classList.contains('show')) {
+        content.style.display = 'block';
+        // Small delay to ensure display change takes effect before animation
+        setTimeout(() => {
+            content.classList.add('show');
+            arrow.classList.add('expanded');
+        }, 10);
+        updateCompilerTable();
+    } else {
+        content.classList.remove('show');
+        arrow.classList.remove('expanded');
+        // Hide after animation completes
+        setTimeout(() => {
+            content.style.display = 'none';
+        }, 400);
+    }
+}
+
+function initializeCompilerTool() {
+    populateTimeDropdown();
+    updateCompilerTable();
+    
+    // Listen for time changes
+    const timeDropdown = document.getElementById('upload-time');
+    if (timeDropdown) {
+        timeDropdown.addEventListener('change', updateCompilerTable);
+    }
+}
+
+function populateTimeDropdown() {
+    const timeDropdown = document.getElementById('upload-time');
+    if (!timeDropdown) return;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Round to nearest 15-minute interval
+    const roundedMinute = Math.round(currentMinute / 15) * 15;
+    let defaultHour = currentHour;
+    let defaultMinute = roundedMinute;
+    
+    if (defaultMinute >= 60) {
+        defaultHour += 1;
+        defaultMinute = 0;
+    }
+    
+    const defaultTime = `${defaultHour.toString().padStart(2, '0')}:${defaultMinute.toString().padStart(2, '0')}`;
+    
+    // Generate time options in 15-minute intervals
+    timeDropdown.innerHTML = '';
+    
+    for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+            const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            const option = document.createElement('option');
+            option.value = timeString;
+            option.textContent = timeString;
+            
+            if (timeString === defaultTime) {
+                option.selected = true;
+            }
+            
+            timeDropdown.appendChild(option);
+        }
+    }
+}
+
+function getCurrentDate() {
+    const now = new Date();
+    // Use local date instead of UTC to avoid timezone issues
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // YYYY-MM-DD format
+}
+
+function getSelectedTimestamp() {
+    const timeDropdown = document.getElementById('upload-time');
+    const selectedTime = timeDropdown ? timeDropdown.value : '00:00';
+    const currentDate = getCurrentDate();
+    return `${currentDate}T${selectedTime}:00`; // ISO 8601 format
+}
+
+async function updateCompilerTable() {
+    const tableBody = document.getElementById('compiler-table-body');
+    if (!tableBody) return;
+    
+    try {
+        const recordings = await stateManager.dbManager.getAllRecordings();
+        
+        if (recordings.length === 0) {
+            tableBody.innerHTML = '<tr><td>No recordings available for compilation</td></tr>';
+            return;
+        }
+        
+        const timestamp = getSelectedTimestamp();
+        
+        tableBody.innerHTML = '';
+        
+        recordings.forEach(recording => {
+            // Extract filename without extension
+            const filenameWithoutExt = recording.filename.replace(/\.[^/.]+$/, '');
+            
+            // Generate upload command
+            const uploadCommand = `./upload.sh -n "${filenameWithoutExt}" -t "${timestamp}" recording.mp4`;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="command-row">
+                        <button class="copy-btn" onclick="copyToClipboard('${uploadCommand.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', this)"
+                                title="Copy command to clipboard">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"/>
+                            </svg>
+                        </button>
+                        <span class="command-text" title="Click to select command">${uploadCommand}</span>
+                    </div>
+                </td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+    } catch (error) {
+        console.error('Error updating compiler table:', error);
+        tableBody.innerHTML = '<tr><td>Error loading recordings</td></tr>';
+    }
+}
+
+// Copy to clipboard function
+function copyToClipboard(text, buttonElement) {
+    // Get the button element if not passed
+    if (!buttonElement) {
+        buttonElement = event.target.closest('.copy-btn');
+    }
+    
+    const originalIcon = buttonElement.innerHTML;
+    const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+    </svg>`;
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Show success feedback
+            buttonElement.innerHTML = checkIcon;
+            buttonElement.style.background = '#4caf50';
+            buttonElement.style.borderColor = '#4caf50';
+            
+            setTimeout(() => {
+                buttonElement.innerHTML = originalIcon;
+                buttonElement.style.background = '';
+                buttonElement.style.borderColor = '';
+            }, 1500);
+            
+            stateManager.showAlert('Command copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Clipboard API failed:', err);
+            fallbackCopy(text, buttonElement, originalIcon, checkIcon);
+        });
+    } else {
+        // Use fallback for older browsers
+        fallbackCopy(text, buttonElement, originalIcon, checkIcon);
+    }
+}
+
+function fallbackCopy(text, buttonElement, originalIcon, checkIcon) {
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+            // Show success feedback
+            buttonElement.innerHTML = checkIcon;
+            buttonElement.style.background = '#4caf50';
+            buttonElement.style.borderColor = '#4caf50';
+            
+            setTimeout(() => {
+                buttonElement.innerHTML = originalIcon;
+                buttonElement.style.background = '';
+                buttonElement.style.borderColor = '';
+            }, 1500);
+            
+            stateManager.showAlert('Command copied to clipboard!', 'success');
+        } else {
+            throw new Error('Copy command failed');
+        }
+    } catch (fallbackErr) {
+         console.error('Fallback copy failed:', fallbackErr);
+         stateManager.showAlert('Failed to copy command. Please copy manually.', 'error');
+     }
+ }
+ 
+ // Setup commands toggle function
+ function toggleSetupCommands() {
+     const content = document.getElementById('setup-commands-content');
+     const arrow = document.getElementById('setup-arrow');
+     
+     if (content.style.display === 'none') {
+         content.style.display = 'block';
+         arrow.classList.add('expanded');
+     } else {
+         content.style.display = 'none';
+         arrow.classList.remove('expanded');
+     }
+ }

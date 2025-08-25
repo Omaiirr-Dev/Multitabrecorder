@@ -111,6 +111,60 @@
                 <p>No recordings yet. Start recording to see your videos here.</p>
             </div>
         </div>
+        
+        <div class="card">
+            <div class="collapsible-header" onclick="toggleCompilerTool()">
+                <h2>Formatted commands for terminal</h2>
+                <span class="collapse-arrow" id="compiler-arrow">▼</span>
+            </div>
+            <div class="collapsible-content" id="compiler-content" style="display: none;">
+                <div class="compiler-controls">
+                    <div class="warning-message">
+                        <span class="warning-icon">⚠️</span>
+                        <span class="warning-text">Ensure all files are correctly named before using the table</span>
+                    </div>
+                    <div class="time-selector">
+                        <label for="upload-time">Match slot time:</label>
+                        <select id="upload-time" class="time-dropdown">
+                            <!-- Time options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="setup-commands-section">
+                        <button class="setup-commands-btn" onclick="toggleSetupCommands()">
+                            <span>Commands to setup terminal</span>
+                            <span class="setup-arrow" id="setup-arrow">▼</span>
+                        </button>
+                        <div class="setup-commands-content" id="setup-commands-content" style="display: none;">
+                            <div class="commands-textbox">
+                                <div class="command-note">*Type these into the terminal, one by one*</div>
+                                <div class="command-line">cd Desktop</div>
+                                <div class="command-line">ls</div>
+                                <div class="command-line">cd jastv</div>
+                                <div class="command-line">ls</div>
+                                <div class="command-line">mv auth_token .auth_token</div>
+                                <div class="command-line">./upload.sh</div>
+                                <div class="command-note">(ensure recordings are in the folder)</div>
+                                <div class="command-note">*Input the commands in the table below*</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="compiler-table-container">
+                    <table class="compiler-table" id="compiler-table">
+                        <thead>
+                            <tr>
+                                <th>Upload Command</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compiler-table-body">
+                            <tr>
+                                <td>No recordings available for compilation</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Simple Crop Modal -->
