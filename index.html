@@ -19,25 +19,31 @@
         <div id="whats-new-dropdown" class="whats-new-dropdown">
             <div class="dropdown-header">
                 <h3>Latest Updates</h3>
-                <span class="version-badge">v2.1</span>
             </div>
             <div class="dropdown-content">
                  <div class="feature-item">
-                      <div class="feature-icon">✂️</div>
+                      <div class="feature-icon">•</div>
+                      <div class="feature-details">
+                          <h4>File terminal management system</h4>
+                          <p>Enhanced file handling and terminal command generation</p>
+                      </div>
+                  </div>
+                 <div class="feature-item">
+                      <div class="feature-icon">•</div>
                       <div class="feature-details">
                           <h4>Added cropping functionality</h4>
                           <p>Processing time may vary based on hardware performance</p>
                       </div>
                   </div>
                  <div class="feature-item">
-                      <div class="feature-icon">📊</div>
+                      <div class="feature-icon">•</div>
                       <div class="feature-details">
                           <h4>Updated recording status display</h4>
                           <p>Now shows site names for improved management</p>
                       </div>
                   </div>
                   <div class="feature-item">
-                      <div class="feature-icon">🔍</div>
+                      <div class="feature-icon">•</div>
                       <div class="feature-details">
                           <h4>Enhanced search functionality</h4>
                           <p>Now accepts ID inputs with duplicate detection</p>
@@ -57,8 +63,28 @@
             <h2>Screen Recording Controls</h2>
             
             <div class="input-group">
-                <label for="duration">Recording Duration (seconds):</label>
-                <input type="number" id="duration" value="1800" min="5" max="7200">
+                <label for="duration-slider">Recording Duration:</label>
+                <div class="duration-controls">
+                    <div class="duration-slider-container">
+                        <input type="range" id="duration-slider" class="duration-slider" 
+                                min="0" max="600" value="300" step="30">
+                        <div class="slider-ticks"></div>
+                        <div class="slider-labels">
+                            <span>0:00</span>
+                            <span>2:30</span>
+                            <span>5:00</span>
+                            <span>7:30</span>
+                            <span>10:00</span>
+                        </div>
+                    </div>
+                    <div class="custom-duration">
+                        <label for="custom-duration-input">Enter custom duration:</label>
+                        <input type="text" id="custom-duration-input" class="custom-duration-input" 
+                               placeholder="MM:SS" pattern="^([0-9]|[0-5][0-9]):([0-5][0-9])$" 
+                               title="Enter duration in MM:SS format (max 59:59)">
+                    </div>
+                </div>
+                <input type="hidden" id="duration" value="300">
             </div>
             
             <div class="input-group">
@@ -74,9 +100,9 @@
             <div class="input-group">
                 <label for="video-quality">Video Quality:</label>
                 <div class="quality-slider-container">
-                    <input type="range" id="video-quality" class="quality-slider" min="0" max="4" value="2" step="1">
+                    <input type="range" id="video-quality" class="quality-slider" min="0" max="4" value="3" step="1">
                     <div class="quality-display">
-                        <span id="quality-text">1080p Full HD</span>
+                        <span id="quality-text">720p HD</span>
                     </div>
                 </div>
                 <div class="quality-warning" id="quality-warning" style="display: none;">

@@ -150,9 +150,9 @@ class RecordingStateManager {
         const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
         
         if (qualitySlider && qualityText) {
-            // Set default to 1080p (value 2)
-            qualitySlider.value = 2;
-            qualityText.textContent = '1080p Full HD';
+            // Set default to 720p (value 3)
+            qualitySlider.value = 3;
+            qualityText.textContent = '720p HD';
             
             qualitySlider.addEventListener('input', (e) => {
                 const value = parseInt(e.target.value);
@@ -203,16 +203,18 @@ class RecordingStateManager {
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                padding: 15px 20px;
-                border-radius: 5px;
-                color: white;
-                font-weight: bold;
+                padding: 8px 12px;
+                border-radius: 3px;
+                color: #e0e0e0;
+                font-weight: 400;
                 z-index: 10000;
-                max-width: 400px;
+                max-width: 300px;
                 word-wrap: break-word;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
                 transition: all 0.3s ease;
-                background-color: ${type === 'error' ? '#e74c3c' : '#27ae60'};
+                font-size: 12px;
+                background-color: ${type === 'error' ? '#333333' : '#2a2a2a'};
+                border: 1px solid ${type === 'error' ? '#555555' : '#404040'};
             `;
             alertDiv.textContent = message;
             
@@ -1551,50 +1553,93 @@ async function applyCrop() {
         // Show applying message
         stateManager.showAlert('Applying crop...', 'success');
         
-        // Add real-time progress indicator
+        // Add progress indicator above the instruction text
+        const cropInstructions = document.querySelector('.crop-instructions');
         const progressDiv = document.createElement('div');
         progressDiv.id = 'crop-progress';
         progressDiv.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(26, 26, 26, 0.95);
             color: white;
-            padding: 25px 35px;
-            border-radius: 12px;
-            z-index: 10001;
+            padding: 15px 20px;
+            border-radius: 6px;
             text-align: center;
-            font-size: 16px;
-            font-weight: 500;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            min-width: 300px;
+            font-size: 14px;
+            font-weight: 400;
+            margin-bottom: 15px;
+            border: 1px solid #404040;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
         `;
+        
+        // Insert the progress div before the instruction text
+        cropInstructions.insertBefore(progressDiv, cropInstructions.firstChild);
+        
         progressDiv.innerHTML = `
-            <div style="margin-bottom: 15px; font-size: 18px;">🎬 Applying Crop</div>
-            <div style="margin-bottom: 15px; font-size: 13px; color: #ccc;">Processing your video...</div>
-            <div style="background: #333; border-radius: 10px; height: 8px; margin-bottom: 10px; overflow: hidden;">
-                <div id="crop-progress-bar" style="background: linear-gradient(90deg, #ff6b35, #f7931e); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px;"></div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;">
+                <div class="loading-spinner" style="width: 16px; height: 16px; border: 2px solid #404040; border-top: 2px solid #ff6b35; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <span style="font-size: 16px; font-weight: 500;">Cropping Video</span>
             </div>
-            <div id="crop-progress-text" style="font-size: 12px; color: #aaa;">0%</div>
+            <div style="background: #333; border-radius: 6px; height: 6px; margin-bottom: 8px; overflow: hidden;">
+                <div id="crop-progress-bar" style="background: linear-gradient(90deg, #ff6b35, #f7931e); height: 100%; width: 0%; transition: width 0.5s ease; border-radius: 6px;"></div>
+            </div>
+            <div id="crop-progress-text" style="font-size: 12px; color: #ccc;">0%</div>
         `;
-        document.body.appendChild(progressDiv);
+        
+        // Add spinner animation CSS
+        if (!document.getElementById('spinner-style')) {
+            const style = document.createElement('style');
+            style.id = 'spinner-style';
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
         
         // Store progress elements for updates
          window.cropProgressBar = document.getElementById('crop-progress-bar');
          window.cropProgressText = document.getElementById('crop-progress-text');
+         
+         // Implement 10-second incremental progress system
+         let simulatedProgress = 0;
+         const progressInterval = setInterval(() => {
+             if (simulatedProgress < 80) {
+                 simulatedProgress += 10;
+                 if (window.cropProgressBar && window.cropProgressText) {
+                     window.cropProgressBar.style.width = simulatedProgress + '%';
+                     window.cropProgressText.textContent = simulatedProgress + '%';
+                 }
+             } else {
+                 clearInterval(progressInterval);
+             }
+         }, 10000); // Every 10 seconds
+         
+         // Store interval for cleanup
+         window.cropProgressInterval = progressInterval;
         
         let croppedBlob;
          try {
              // Process video using canvas
              croppedBlob = await processSimpleCrop(recording.blob, { left, right, top, bottom });
              
-             // Remove progress indicator
-             document.body.removeChild(progressDiv);
+             // Clear progress interval and remove progress indicator
+             if (window.cropProgressInterval) {
+                 clearInterval(window.cropProgressInterval);
+                 window.cropProgressInterval = null;
+             }
+             if (progressDiv && progressDiv.parentNode) {
+                 progressDiv.parentNode.removeChild(progressDiv);
+             }
          } catch (error) {
-             // Remove progress indicator on error
-             if (document.body.contains(progressDiv)) {
-                 document.body.removeChild(progressDiv);
+             // Clear progress interval and remove progress indicator on error
+             if (window.cropProgressInterval) {
+                 clearInterval(window.cropProgressInterval);
+                 window.cropProgressInterval = null;
+             }
+             if (progressDiv && progressDiv.parentNode) {
+                 progressDiv.parentNode.removeChild(progressDiv);
              }
              throw error;
          }
@@ -1702,6 +1747,12 @@ async function processSimpleCrop(videoBlob, cropParams) {
                 
                 recorder.onstop = () => {
                      try {
+                         // Clear the simulated progress interval
+                         if (window.cropProgressInterval) {
+                             clearInterval(window.cropProgressInterval);
+                             window.cropProgressInterval = null;
+                         }
+                         
                          // Complete the progress bar
                          if (window.cropProgressBar && window.cropProgressText) {
                              window.cropProgressBar.style.width = '100%';
@@ -1729,6 +1780,12 @@ async function processSimpleCrop(videoBlob, cropParams) {
                  };
                 
                 recorder.onerror = (event) => {
+                     // Clear the simulated progress interval
+                     if (window.cropProgressInterval) {
+                         clearInterval(window.cropProgressInterval);
+                         window.cropProgressInterval = null;
+                     }
+                     
                      URL.revokeObjectURL(video.src);
                      window.cropProgressBar = null;
                      window.cropProgressText = null;
@@ -1857,10 +1914,89 @@ document.addEventListener('DOMContentLoaded', async function() {
         await stateManager.dbManager.initDB();
         await loadSavedRecordings();
         initializeCompilerTool();
+        initializeDurationControls();
     } catch (error) {
         console.error('Initialization failed:', error);
     }
 });
+
+// Duration controls initialization and synchronization
+function initializeDurationControls() {
+    const slider = document.getElementById('duration-slider');
+    const customInput = document.getElementById('custom-duration-input');
+    const hiddenInput = document.getElementById('duration');
+    
+    // Set initial values
+     updateSliderFromSeconds(300); // 5 minutes default
+    
+    // Slider change handler
+    slider.addEventListener('input', function() {
+        const seconds = parseInt(this.value);
+        updateCustomInputFromSeconds(seconds);
+        hiddenInput.value = seconds;
+    });
+    
+    // Custom input change handler
+    customInput.addEventListener('input', function() {
+        const mmss = this.value;
+        if (validateMMSS(mmss)) {
+            const seconds = convertMMSSToSeconds(mmss);
+            if (seconds <= 3600) { // Max 60 minutes
+                updateSliderFromSeconds(seconds);
+                hiddenInput.value = seconds;
+                this.setCustomValidity('');
+            } else {
+                this.setCustomValidity('Duration cannot exceed 60:00');
+            }
+        } else if (mmss.length >= 4) {
+            this.setCustomValidity('Please enter time in MM:SS format (e.g., 05:30)');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // Custom input blur handler for final validation
+    customInput.addEventListener('blur', function() {
+        if (this.value && !validateMMSS(this.value)) {
+            this.value = formatSecondsToMMSS(parseInt(hiddenInput.value));
+        }
+    });
+}
+
+function updateSliderFromSeconds(seconds) {
+    const slider = document.getElementById('duration-slider');
+    const customInput = document.getElementById('custom-duration-input');
+    
+    // Clamp to slider range (0-600 seconds = 0-10 minutes)
+    const clampedSeconds = Math.max(0, Math.min(600, seconds));
+    slider.value = clampedSeconds;
+    
+    // Update custom input
+    customInput.value = formatSecondsToMMSS(seconds);
+}
+
+function updateCustomInputFromSeconds(seconds) {
+    const customInput = document.getElementById('custom-duration-input');
+    customInput.value = formatSecondsToMMSS(seconds);
+}
+
+function validateMMSS(mmss) {
+    const regex = /^([0-5]?[0-9]):([0-5][0-9])$/;
+    return regex.test(mmss);
+}
+
+function convertMMSSToSeconds(mmss) {
+    const parts = mmss.split(':');
+    const minutes = parseInt(parts[0]) || 0;
+    const seconds = parseInt(parts[1]) || 0;
+    return (minutes * 60) + seconds;
+}
+
+function formatSecondsToMMSS(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
 
 // Compiler Tool Functions
 function toggleCompilerTool() {
