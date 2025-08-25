@@ -16,4 +16,5 @@ This app lets you:
 
 ### Architecture Overview
 
-The app is built with vanilla HTML, CSS, and JavaScript - no frameworks, no build process, no complications. Here's how the pieces fit together:
+
+The app is built with vanilla HTML, CSS, and JavaScript - no frameworks, no build process, no complications.
