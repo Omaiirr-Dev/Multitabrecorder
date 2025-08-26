@@ -18,8 +18,103 @@ const CONFIG = {
         USER_PREFERENCES: 'userPreferences' // user settings
     },
     ERROR_RECOVERY_ATTEMPTS: 3, // try 3 times if something fails
-    CLEANUP_DELAY: 100          // wait a bit before cleaning up
+    CLEANUP_DELAY: 100,          // wait a bit before cleaning up
+    
+    // Filename handling patterns
+    FILENAME_PATTERNS: {
+        // Only remove characters that are truly invalid for file systems
+        // Preserve URLs, dashes, dots, colons, slashes, etc.
+        DISPLAY_SAFE: /[<>"\\|?*]/g,  // Only remove Windows invalid chars for display
+        DOWNLOAD_SAFE: /[<>:"/\\|?*]/g  // Remove more chars only for actual downloads
+    }
 };
+
+// Helper functions for consistent filename handling
+function preserveUrlForDisplay(filename) {
+    // Only remove truly problematic characters, preserve URLs completely
+    return filename.replace(CONFIG.FILENAME_PATTERNS.DISPLAY_SAFE, '_');
+}
+
+function sanitizeForDownload(filename) {
+    // Only sanitize when actually downloading files
+    return filename.replace(CONFIG.FILENAME_PATTERNS.DOWNLOAD_SAFE, '_');
+}
+
+function preserveUrlInTabTitle(tabTitle) {
+     // Preserve all URL characters in tab titles
+     return tabTitle.replace(CONFIG.FILENAME_PATTERNS.DISPLAY_SAFE, '').substring(0, 50) || 'Screen Recording';
+ }
+ 
+ // Comprehensive URL preservation validation
+ function validateUrlPreservation(originalUrl, processedUrl, context) {
+     console.log(`[URL Preservation Check - ${context}]`);
+     console.log(`Original: "${originalUrl}"`);
+     console.log(`Processed: "${processedUrl}"`);
+     
+     // Check if critical URL components are preserved
+     const urlComponents = {
+         protocol: originalUrl.includes('://'),
+         colon: originalUrl.includes(':'),
+         slash: originalUrl.includes('/'),
+         dot: originalUrl.includes('.'),
+         dash: originalUrl.includes('-'),
+         underscore: originalUrl.includes('_'),
+         equals: originalUrl.includes('='),
+         question: originalUrl.includes('?'),
+         ampersand: originalUrl.includes('&')
+     };
+     
+     const preservedComponents = {
+         protocol: processedUrl.includes('://'),
+         colon: processedUrl.includes(':'),
+         slash: processedUrl.includes('/'),
+         dot: processedUrl.includes('.'),
+         dash: processedUrl.includes('-'),
+         underscore: processedUrl.includes('_'),
+         equals: processedUrl.includes('='),
+         question: processedUrl.includes('?'),
+         ampersand: processedUrl.includes('&')
+     };
+     
+     let allPreserved = true;
+     for (const [component, originalHas] of Object.entries(urlComponents)) {
+         if (originalHas && !preservedComponents[component]) {
+             console.warn(`❌ Lost ${component} in ${context}`);
+             allPreserved = false;
+         } else if (originalHas && preservedComponents[component]) {
+             console.log(`✅ Preserved ${component} in ${context}`);
+         }
+     }
+     
+     if (allPreserved) {
+         console.log(`🎉 All URL components preserved in ${context}!`);
+     } else {
+         console.error(`🚨 URL components lost in ${context}!`);
+     }
+     
+     return allPreserved;
+ }
+ 
+ // Enhanced filename processing with validation
+ function processFilenameWithValidation(filename, context, forDownload = false) {
+     console.log(`\n[Processing filename for ${context}]`);
+     console.log(`Input: "${filename}"`);
+     console.log(`For download: ${forDownload}`);
+     
+     let result;
+     if (forDownload) {
+         result = sanitizeForDownload(filename);
+         console.log(`Applied download sanitization`);
+     } else {
+         result = preserveUrlForDisplay(filename);
+         console.log(`Applied display preservation`);
+     }
+     
+     console.log(`Output: "${result}"`);
+     validateUrlPreservation(filename, result, context);
+     
+     return result;
+ }
 
 // Add this new class after CONFIG
 class IndexedDBManager {
@@ -517,7 +612,7 @@ function updateRecordingsPreview() {
         const qualitySlider = document.getElementById('video-quality');
         const qualityValues = ['4k', '1440p', '1080p', '720p', '480p'];
         const selectedQuality = qualityValues[parseInt(qualitySlider.value)];
-        const cleanTabTitle = (recording.tabTitle || 'Screen Recording').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const cleanTabTitle = preserveUrlForDisplay((recording.tabTitle || 'Screen Recording')).substring(0, 30);
         
         // Use stored input value if available, otherwise use recording's custom filename or default
         let currentFilename;
@@ -746,7 +841,8 @@ async function addScreenRecording() {
             } else if (label) {
                 tabTitle = label.trim();
             }
-            tabTitle = tabTitle.replace(/[^\w\s-]/g, '').substring(0, 50) || 'Screen Recording';
+            // Preserve URL characters and common punctuation for tab titles
+            tabTitle = preserveUrlInTabTitle(tabTitle);
         } catch {}
 
         // Set up thumbnail capture
@@ -979,7 +1075,7 @@ async function saveScreenRecording(recordedChunks, recordingId, startTime, tabTi
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
     // Clean tab title for filename
-    const cleanTabTitle = tabTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+    const cleanTabTitle = preserveUrlForDisplay(tabTitle).substring(0, 30);
     const duration = (Date.now() - startTime) / 1000;
     
     // Get existing recordings count for naming
@@ -999,7 +1095,7 @@ async function saveScreenRecording(recordedChunks, recordingId, startTime, tabTi
          // Check active recording for custom filename
          if (recordingForFilename && recordingForFilename.customFilename) {
             customFilename = recordingForFilename.customFilename;
-            baseFilename = customFilename.replace(/[^a-zA-Z0-9_-]/g, '_');
+            baseFilename = preserveUrlForDisplay(customFilename);
             console.log(`Using custom filename: ${baseFilename} for recording ${recordingId}`);
         }
         // Check preserved custom filenames (for recordings that have already stopped)
@@ -1007,7 +1103,7 @@ async function saveScreenRecording(recordedChunks, recordingId, startTime, tabTi
             customFilename = window.pendingCustomFilenames.get(recordingId);
             // Clean up the temporary storage
             window.pendingCustomFilenames.delete(recordingId);
-            baseFilename = customFilename.replace(/[^a-zA-Z0-9_-]/g, '_');
+            baseFilename = preserveUrlForDisplay(customFilename);
             console.log(`Using preserved custom filename: ${baseFilename} for recording ${recordingId}`);
         }
         else {
@@ -1082,7 +1178,11 @@ function downloadRecordingDirectly(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    
+    // Sanitize filename only for download
+     const sanitizedFilename = sanitizeForDownload(filename);
+     a.download = sanitizedFilename;
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1178,6 +1278,7 @@ async function loadSavedRecordings() {
         recordings.forEach((recording, index) => {
             const recordingDiv = document.createElement('div');
             recordingDiv.className = 'recording-item';
+            recordingDiv.setAttribute('data-recording-id', recording.id); // Add this for rename function
             
             const sizeInMB = (recording.size / (1024 * 1024)).toFixed(1);
             const date = new Date(recording.timestamp).toLocaleString();
@@ -1284,7 +1385,11 @@ async function downloadRecordingFromDB(id) {
             const url = URL.createObjectURL(recording.blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = recording.filename;
+            
+            // Sanitize filename only for download, preserve URLs in display
+            const sanitizedFilename = sanitizeForDownload(recording.filename);
+            a.download = sanitizedFilename;
+            
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1324,33 +1429,116 @@ async function renameRecording(id) {
             return;
         }
         
-        const currentName = recording.filename.replace(/\.[^/.]+$/, '');
-        const newName = prompt('Enter new filename (without extension):', currentName);
+        // Find the recording item in the DOM
+        const recordingItem = document.querySelector(`[data-recording-id="${id}"]`);
+        if (!recordingItem) {
+            stateManager.showAlert('Recording element not found', 'error');
+            return;
+        }
         
-        if (newName && newName.trim() && newName.trim() !== currentName) {
-            const cleanName = newName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+        // Find the filename display element
+        const filenameElement = recordingItem.querySelector('.recording-name');
+        if (!filenameElement) {
+            stateManager.showAlert('Filename element not found', 'error');
+            return;
+        }
+        
+        const currentName = recording.filename.replace(/\.[^/.]+$/, '');
+        const extension = recording.filename.split('.').pop();
+        
+        // Create inline input for editing
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentName;
+        input.className = 'inline-rename-input';
+        input.style.cssText = `
+            background: #2a2a2a;
+            color: #ffffff;
+            border: 1px solid #ff6b35;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 13px;
+            font-family: inherit;
+            width: 200px;
+            outline: none;
+        `;
+        
+        // Replace filename with input
+        filenameElement.style.display = 'none';
+        filenameElement.parentNode.insertBefore(input, filenameElement.nextSibling);
+        input.focus();
+        input.select();
+        
+        // Handle save on Enter or blur
+        const saveRename = async () => {
+            const newName = input.value.trim();
             
-            if (cleanName) {
-                const extension = recording.filename.split('.').pop();
-                const newFilename = `${cleanName}.${extension}`;
+            if (newName && newName !== currentName) {
+                console.log(`\n[RENAME OPERATION STARTED]`);
+                console.log(`Original name: "${currentName}"`);
+                console.log(`New name input: "${newName}"`);
                 
-                // Update the recording
+                // Store the original name for display - NO SANITIZATION
+                const displayName = newName;
+                console.log(`Display name (unsanitized): "${displayName}"`);
+                
+                // Validate URL preservation in display name
+                validateUrlPreservation(newName, displayName, 'Rename Display');
+                
+                // Create filename with original unsanitized name
+                const newFilename = `${displayName}.${extension}`;
+                console.log(`Final filename: "${newFilename}"`);
+                
+                // Update the recording with the original unsanitized name
                 recording.filename = newFilename;
+                recording.displayName = displayName; // Store original for display
+                recording.originalInput = newName; // Store what user actually typed
+                
+                console.log(`Stored in database:`);
+                console.log(`- filename: "${recording.filename}"`);
+                console.log(`- displayName: "${recording.displayName}"`);
+                console.log(`- originalInput: "${recording.originalInput}"`);
                 
                 // Delete old and save updated
                 await stateManager.dbManager.deleteRecording(id);
                 await stateManager.dbManager.saveRecording(recording);
                 
-                await loadSavedRecordings();
+                // Update the display with original name
+                filenameElement.textContent = newFilename;
+                console.log(`UI updated with: "${newFilename}"`);
+                
+                // Validate final result
+                validateUrlPreservation(newName, newFilename, 'Final Rename Result');
+                
                 // Update compiler table in real-time
                 if (typeof updateCompilerTable === 'function') {
                     updateCompilerTable();
                 }
-                stateManager.showAlert(`Recording renamed to: ${newFilename}`);
-            } else {
-                stateManager.showAlert('Invalid filename. Please use only letters, numbers, underscores, and hyphens.', 'error');
+                
+                stateManager.showAlert(`Recording renamed to: ${displayName}`, 'success');
+                console.log(`[RENAME OPERATION COMPLETED SUCCESSFULLY]\n`);
             }
-        }
+            
+            // Restore original display
+            input.remove();
+            filenameElement.style.display = '';
+        };
+        
+        // Save on Enter key
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveRename();
+            } else if (e.key === 'Escape') {
+                // Cancel on Escape
+                input.remove();
+                filenameElement.style.display = '';
+            }
+        });
+        
+        // Save on blur (clicking away)
+        input.addEventListener('blur', saveRename);
+        
     } catch (error) {
         console.error('Rename failed:', error);
         stateManager.showAlert('Rename failed', 'error');
@@ -1915,10 +2103,124 @@ document.addEventListener('DOMContentLoaded', async function() {
         await loadSavedRecordings();
         initializeCompilerTool();
         initializeDurationControls();
+        initializeNotepad();
     } catch (error) {
         console.error('Initialization failed:', error);
     }
 });
+
+// Notepad functionality
+function initializeNotepad() {
+    const textarea = document.getElementById('notepad-textarea');
+    const notepadSection = document.querySelector('.notepad-section');
+    const notepadHeader = document.querySelector('.notepad-header');
+    if (!textarea || !notepadSection || !notepadHeader) return;
+    
+    // Load saved notes from localStorage
+    const savedNotes = localStorage.getItem('notepad-content');
+    if (savedNotes) {
+        textarea.value = savedNotes;
+        autoResizeTextarea(textarea);
+    }
+    
+    // Auto-resize textarea function
+    function autoResizeTextarea(element) {
+        element.style.height = 'auto';
+        element.style.height = Math.max(120, element.scrollHeight) + 'px';
+    }
+    
+    // Auto-save on input with debouncing and auto-resize
+    let saveTimeout;
+    textarea.addEventListener('input', function() {
+        autoResizeTextarea(this);
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            localStorage.setItem('notepad-content', textarea.value);
+        }, 500); // Save after 500ms of no typing
+    });
+    
+    // Save on blur (when user clicks away)
+    textarea.addEventListener('blur', function() {
+        localStorage.setItem('notepad-content', textarea.value);
+    });
+    
+    // Handle tab key for proper indentation
+    textarea.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            
+            // Insert tab character
+            this.value = this.value.substring(0, start) + '\t' + this.value.substring(end);
+            
+            // Move cursor after the tab
+            this.selectionStart = this.selectionEnd = start + 1;
+            
+            // Auto-resize and save
+            autoResizeTextarea(this);
+            localStorage.setItem('notepad-content', this.value);
+        }
+    });
+    
+    // Resize functionality is handled by CSS resize property
+    // The notepad can now be resized by dragging the bottom-right corner
+}
+
+function clearNotepad() {
+    const textarea = document.getElementById('notepad-textarea');
+    const clearBtn = document.querySelector('.notepad-clear-btn');
+    if (!textarea || !clearBtn) return;
+    
+    // Check if button is in confirmation state
+    if (clearBtn.classList.contains('confirm-state')) {
+        // Second click - actually clear
+        textarea.value = '';
+        localStorage.removeItem('notepad-content');
+        
+        // Reset textarea height to minimum
+        textarea.style.height = '120px';
+        
+        // Reset button state
+        clearBtn.classList.remove('confirm-state');
+        clearBtn.innerHTML = `
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+            </svg>
+            Clear
+        `;
+        
+        // Show confirmation
+        stateManager.showAlert('Notes cleared successfully', 'success');
+        
+        // Focus back to textarea
+        textarea.focus();
+    } else {
+        // First click - show confirmation state
+        if (textarea.value.trim()) {
+            clearBtn.classList.add('confirm-state');
+            clearBtn.innerHTML = `
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                </svg>
+                Are you sure?
+            `;
+            
+            // Reset to normal state after 3 seconds if not clicked
+            setTimeout(() => {
+                if (clearBtn.classList.contains('confirm-state')) {
+                    clearBtn.classList.remove('confirm-state');
+                    clearBtn.innerHTML = `
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                        Clear
+                    `;
+                }
+            }, 3000);
+        }
+    }
+}
 
 // Duration controls initialization and synchronization
 function initializeDurationControls() {
@@ -2107,8 +2409,8 @@ async function updateCompilerTable() {
             // Extract filename without extension
             const filenameWithoutExt = recording.filename.replace(/\.[^/.]+$/, '');
             
-            // Generate upload command
-            const uploadCommand = `./upload.sh -n "${filenameWithoutExt}" -t "${timestamp}" recording.mp4`;
+            // Generate upload command using actual filename
+            const uploadCommand = `./upload.sh -n "${filenameWithoutExt}" -t "${timestamp}" "${recording.filename}"`;
             
             const row = document.createElement('tr');
             row.innerHTML = `

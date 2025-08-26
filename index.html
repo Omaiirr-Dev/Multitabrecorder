@@ -138,6 +138,22 @@
             <div id="recordings-list" class="recordings-list">
                 <p>No recordings yet. Start recording to see your videos here.</p>
             </div>
+            
+            <!-- Notepad Section -->
+            <div class="notepad-section">
+                <div class="notepad-header">
+                    <h3>Notes</h3>
+                    <button class="notepad-clear-btn" onclick="clearNotepad()" title="Clear all notes">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                        Clear
+                    </button>
+                </div>
+                <div class="notepad-container">
+                    <textarea id="notepad-textarea" class="notepad-textarea" placeholder="To help you keep track of any sites and their search IDs"></textarea>
+                </div>
+            </div>
         </div>
         
         <div class="card">
