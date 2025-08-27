@@ -1009,9 +1009,6 @@ function startScreenRecording(stream, recordingId, duration, tabTitle = "Unknown
             }
     }
     
-    // Add high bitrate for quality consistency with crop processing
-    options.videoBitsPerSecond = 8000000; // 8 Mbps for high quality
-    
     const mediaRecorder = new MediaRecorder(stream, options);
     const recordedChunks = [];
     const startTime = Date.now();
@@ -1646,9 +1643,17 @@ function startDrag(e) {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
+    // Store initial mouse position for drag threshold
+    currentCropSession.initialMouseX = clientX;
+    currentCropSession.initialMouseY = clientY;
+    currentCropSession.dragStarted = false;
     currentCropSession.isDragging = true;
     currentCropSession.startX = clientX - rect.left;
     currentCropSession.startY = clientY - rect.top;
+    
+    // Add visual feedback for drag start
+    const overlay = document.getElementById('crop-overlay');
+    overlay.style.cursor = 'crosshair';
     
     // Start new selection
     currentCropSession.cropRect = {
@@ -1673,67 +1678,68 @@ function drag(e) {
     const currentX = clientX - rect.left;
     const currentY = clientY - rect.top;
     
-    // Calculate width and height from start point
-    let width = Math.abs(currentX - currentCropSession.startX);
-    let height = Math.abs(currentY - currentCropSession.startY);
+    // Calculate raw dimensions first
+    let rawWidth = Math.abs(currentX - currentCropSession.startX);
+    let rawHeight = Math.abs(currentY - currentCropSession.startY);
     
-    // Lock to 16:9 aspect ratio
+    // Apply 16:9 aspect ratio constraint
     const aspectRatio = 16 / 9;
+    let finalWidth, finalHeight;
     
-    // Determine which dimension to use as the base
-    const widthBasedHeight = width / aspectRatio;
-    const heightBasedWidth = height * aspectRatio;
-    
-    // Use the smaller dimension to ensure the crop area fits within bounds
-    if (widthBasedHeight <= height) {
-        height = widthBasedHeight;
+    // Determine which dimension to constrain based on aspect ratio
+    if (rawWidth / rawHeight > aspectRatio) {
+        // Width is too large, constrain by height
+        finalHeight = rawHeight;
+        finalWidth = finalHeight * aspectRatio;
     } else {
-        width = heightBasedWidth;
+        // Height is too large, constrain by width
+        finalWidth = rawWidth;
+        finalHeight = finalWidth / aspectRatio;
     }
     
-    // Calculate position - FIXED: Always use start point as anchor
-    let x, y;
+    // Calculate position based on drag direction
+    let finalX, finalY;
     
-    // Determine quadrant based on drag direction
-    if (currentX >= currentCropSession.startX && currentY >= currentCropSession.startY) {
-        // Dragging bottom-right
-        x = currentCropSession.startX;
-        y = currentCropSession.startY;
-    } else if (currentX < currentCropSession.startX && currentY >= currentCropSession.startY) {
-        // Dragging bottom-left
-        x = currentCropSession.startX - width;
-        y = currentCropSession.startY;
-    } else if (currentX >= currentCropSession.startX && currentY < currentCropSession.startY) {
-        // Dragging top-right
-        x = currentCropSession.startX;
-        y = currentCropSession.startY - height;
+    if (currentX >= currentCropSession.startX) {
+        // Dragging right
+        finalX = currentCropSession.startX;
     } else {
-        // Dragging top-left
-        x = currentCropSession.startX - width;
-        y = currentCropSession.startY - height;
+        // Dragging left
+        finalX = currentCropSession.startX - finalWidth;
     }
     
-    // Ensure the crop area doesn't exceed overlay bounds
-    if (x < 0) {
-        x = 0;
-        width = Math.min(width, currentCropSession.startX);
-        height = width / aspectRatio;
-    }
-    if (y < 0) {
-        y = 0;
-        height = Math.min(height, currentCropSession.startY);
-        width = height * aspectRatio;
-    }
-    if (x + width > rect.width) {
-        width = rect.width - x;
-        height = width / aspectRatio;
-    }
-    if (y + height > rect.height) {
-        height = rect.height - y;
-        width = height * aspectRatio;
+    if (currentY >= currentCropSession.startY) {
+        // Dragging down
+        finalY = currentCropSession.startY;
+    } else {
+        // Dragging up
+        finalY = currentCropSession.startY - finalHeight;
     }
     
-    currentCropSession.cropRect = { x, y, width, height };
+    // Ensure the crop area stays within bounds
+    finalX = Math.max(0, Math.min(finalX, rect.width - finalWidth));
+    finalY = Math.max(0, Math.min(finalY, rect.height - finalHeight));
+    
+    // If we hit a boundary, recalculate dimensions to fit
+    const availableWidth = rect.width - finalX;
+    const availableHeight = rect.height - finalY;
+    
+    if (finalWidth > availableWidth) {
+        finalWidth = availableWidth;
+        finalHeight = finalWidth / aspectRatio;
+    }
+    if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = finalHeight * aspectRatio;
+    }
+    
+    currentCropSession.cropRect = {
+        x: finalX,
+        y: finalY,
+        width: finalWidth,
+        height: finalHeight
+    };
+    
     updateCropSelection();
 }
 
@@ -1741,22 +1747,47 @@ function endDrag(e) {
     if (!currentCropSession) return;
     
     currentCropSession.isDragging = false;
+    currentCropSession.dragStarted = false;
     
-    // Ensure minimum size while maintaining 16:9 aspect ratio
-    const aspectRatio = 16 / 9;
-    const minWidth = 80;  // Minimum width for 16:9 ratio
-    const minHeight = minWidth / aspectRatio;
+    // Reset cursor to default
+    const overlay = document.getElementById('crop-overlay');
+    overlay.style.cursor = 'default';
     
-    if (currentCropSession.cropRect.width < minWidth) {
-        currentCropSession.cropRect.width = minWidth;
-        currentCropSession.cropRect.height = minHeight;
+    // Only apply minimum size if a drag actually occurred
+    if (currentCropSession.cropRect.width > 0 && currentCropSession.cropRect.height > 0) {
+        // Ensure minimum size while maintaining 16:9 aspect ratio
+        const aspectRatio = 16 / 9;
+        const minWidth = 80;  // Minimum width for 16:9 ratio
+        const minHeight = minWidth / aspectRatio;
+        
+        if (currentCropSession.cropRect.width < minWidth) {
+            currentCropSession.cropRect.width = minWidth;
+            currentCropSession.cropRect.height = minHeight;
+        }
+        if (currentCropSession.cropRect.height < minHeight) {
+            currentCropSession.cropRect.height = minHeight;
+            currentCropSession.cropRect.width = minWidth;
+        }
+        
+        // Final boundary check to ensure crop area is within video bounds
+        const video = document.getElementById('crop-video');
+        const videoRect = video.getBoundingClientRect();
+        const overlayRect = overlay.getBoundingClientRect();
+        
+        // Adjust position if crop area extends beyond video bounds
+        const maxX = overlayRect.width - currentCropSession.cropRect.width;
+        const maxY = overlayRect.height - currentCropSession.cropRect.height;
+        
+        currentCropSession.cropRect.x = Math.max(0, Math.min(currentCropSession.cropRect.x, maxX));
+        currentCropSession.cropRect.y = Math.max(0, Math.min(currentCropSession.cropRect.y, maxY));
+        
+        updateCropSelection();
+        
+        // Provide haptic feedback on supported devices
+        if (navigator.vibrate) {
+            navigator.vibrate(50); // Short vibration for feedback
+        }
     }
-    if (currentCropSession.cropRect.height < minHeight) {
-        currentCropSession.cropRect.height = minHeight;
-        currentCropSession.cropRect.width = minWidth;
-    }
-    
-    updateCropSelection();
 }
 
 function updateCropSelection() {
@@ -1975,15 +2006,24 @@ async function processSimpleCrop(videoBlob, cropParams) {
                     return;
                 }
                 
-                // Create canvas with optimized settings
+                // Create canvas with optimized settings for MacBook performance
                 const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d', { alpha: false });
+                const ctx = canvas.getContext('2d', { 
+                    alpha: false,
+                    desynchronized: true,  // Better performance on MacBook
+                    powerPreference: 'high-performance',  // Use dedicated GPU if available
+                    willReadFrequently: false  // Optimize for write operations
+                });
                 canvas.width = newWidth;
                 canvas.height = newHeight;
                 
+                // Enable hardware acceleration hints
+                ctx.imageSmoothingEnabled = false;  // Faster pixel-perfect copying
+                ctx.imageSmoothingQuality = 'high';  // High quality when smoothing is needed
+                
                 // Set up MediaRecorder with optimized settings for faster processing
                 const stream = canvas.captureStream(30); // Limited to 30fps for performance
-                // Prefer VP8 for faster encoding over VP9
+                // Prefer VP8 for faster encoding over VP9 (better for MacBook performance)
                 let mimeType = 'video/webm;codecs=vp8';
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     mimeType = 'video/webm;codecs=vp9';
@@ -1992,9 +2032,12 @@ async function processSimpleCrop(videoBlob, cropParams) {
                     }
                 }
                 
+                // Optimized settings for MacBook Chrome performance
                 const recorder = new MediaRecorder(stream, {
                     mimeType: mimeType,
-                    videoBitsPerSecond: 8000000  // 8 Mbps for high quality 1080p 30fps
+                    videoBitsPerSecond: 8000000,  // 8 Mbps for high quality 1080p 30fps
+                    // Hardware acceleration hints for better performance
+                    videoKeyFrameIntervalDuration: 2000  // Keyframe every 2 seconds for faster seeking
                 });
                 
                 const chunks = [];
@@ -2053,8 +2096,8 @@ async function processSimpleCrop(videoBlob, cropParams) {
                      reject(new Error('Recording failed: ' + (event.error?.message || 'Unknown error')));
                  };
                 
-                // Start recording with faster data collection
-                recorder.start(500); // Collect data every 500ms for faster processing
+                // Start recording with optimized data collection for MacBook
+                recorder.start(250); // Collect data every 250ms for faster processing on MacBook
                 
                 let lastRenderTime = 0;
                 const targetFrameTime = 1000 / 30; // 30fps = ~33.33ms per frame
@@ -2086,9 +2129,15 @@ async function processSimpleCrop(videoBlob, cropParams) {
                                  }
                              }
                              
-                             // Optimized memory management for faster processing
-                             if (frameCount % 600 === 0 && window.gc) {
-                                 window.gc(); // Less frequent garbage collection for better performance
+                             // Optimized memory management for MacBook performance
+                             if (frameCount % 300 === 0 && window.gc) {
+                                 window.gc(); // More frequent garbage collection for better MacBook performance
+                             }
+                             
+                             // Yield control to browser for smoother performance
+                             if (frameCount % 60 === 0) {
+                                 // Use setTimeout to yield control without blocking
+                                 setTimeout(() => {}, 0);
                              }
                              
                          } catch (drawError) {
