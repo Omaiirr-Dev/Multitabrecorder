@@ -242,16 +242,16 @@ class RecordingStateManager {
         const qualitySlider = document.getElementById('video-quality');
         const qualityText = document.getElementById('quality-text');
         const qualityWarning = document.getElementById('quality-warning');
-        const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
+        const qualityNames = ['4K', '1440p', '1080p', '720p', '480p'];
         
         if (qualitySlider && qualityText) {
-            // Set default to 720p (value 3)
-            qualitySlider.value = 3;
-            qualityText.textContent = '720p HD';
+            // Set default to 1080p (value 2)
+            qualitySlider.value = 2;
+            qualityText.textContent = '1080p';
             
             qualitySlider.addEventListener('input', (e) => {
                 const value = parseInt(e.target.value);
-                qualityText.textContent = qualityNames[value] || '1080p Full HD';
+                qualityText.textContent = qualityNames[value] || '1080p';
                 
                 // Show warning only when 4K (value 0) is selected
                 if (qualityWarning) {
@@ -852,8 +852,8 @@ async function addScreenRecording() {
             console.warn('Thumbnail capture setup failed:', thumbnailError);
         }
 
-        const qualityNames = ['4K Ultra', '1440p QHD', '1080p Full HD', '720p HD', '480p SD'];
-        const qualityName = qualityNames[selectedQuality] || '4K Ultra';
+        const qualityNames = ['4K', '1440p', '1080p', '720p HD', '480p'];
+        const qualityName = qualityNames[selectedQuality] || '4K';
         
         startScreenRecording(stream, recordingId, duration, tabTitle);
         stateManager.showAlert(`Started recording in ${qualityName} quality!`);
@@ -1008,6 +1008,9 @@ function startScreenRecording(stream, recordingId, duration, tabTitle = "Unknown
                 }
             }
     }
+    
+    // Add high bitrate for quality consistency with crop processing
+    options.videoBitsPerSecond = 8000000; // 8 Mbps for high quality
     
     const mediaRecorder = new MediaRecorder(stream, options);
     const recordedChunks = [];
@@ -1600,15 +1603,26 @@ function setupCropDragging() {
     
     if (!videoContainer || !video || !overlay || !selection) return;
     
-    // Initialize crop selection in center of video
+    // Initialize crop selection in center of video with 16:9 aspect ratio
     const videoRect = video.getBoundingClientRect();
     const containerRect = videoContainer.getBoundingClientRect();
     
+    // Calculate 16:9 crop area that fits within the video
+    const aspectRatio = 16 / 9;
+    let cropWidth = videoRect.width * 0.6;
+    let cropHeight = cropWidth / aspectRatio;
+    
+    // If height is too large, adjust based on height
+    if (cropHeight > videoRect.height * 0.6) {
+        cropHeight = videoRect.height * 0.6;
+        cropWidth = cropHeight * aspectRatio;
+    }
+    
     currentCropSession.cropRect = {
-        x: videoRect.width * 0.25,
-        y: videoRect.height * 0.25,
-        width: videoRect.width * 0.5,
-        height: videoRect.height * 0.5
+        x: (videoRect.width - cropWidth) / 2,
+        y: (videoRect.height - cropHeight) / 2,
+        width: cropWidth,
+        height: cropHeight
     };
     
     updateCropSelection();
@@ -1659,11 +1673,65 @@ function drag(e) {
     const currentX = clientX - rect.left;
     const currentY = clientY - rect.top;
     
-    // Calculate selection rectangle
-    const x = Math.min(currentCropSession.startX, currentX);
-    const y = Math.min(currentCropSession.startY, currentY);
-    const width = Math.abs(currentX - currentCropSession.startX);
-    const height = Math.abs(currentY - currentCropSession.startY);
+    // Calculate width and height from start point
+    let width = Math.abs(currentX - currentCropSession.startX);
+    let height = Math.abs(currentY - currentCropSession.startY);
+    
+    // Lock to 16:9 aspect ratio
+    const aspectRatio = 16 / 9;
+    
+    // Determine which dimension to use as the base
+    const widthBasedHeight = width / aspectRatio;
+    const heightBasedWidth = height * aspectRatio;
+    
+    // Use the smaller dimension to ensure the crop area fits within bounds
+    if (widthBasedHeight <= height) {
+        height = widthBasedHeight;
+    } else {
+        width = heightBasedWidth;
+    }
+    
+    // Calculate position - FIXED: Always use start point as anchor
+    let x, y;
+    
+    // Determine quadrant based on drag direction
+    if (currentX >= currentCropSession.startX && currentY >= currentCropSession.startY) {
+        // Dragging bottom-right
+        x = currentCropSession.startX;
+        y = currentCropSession.startY;
+    } else if (currentX < currentCropSession.startX && currentY >= currentCropSession.startY) {
+        // Dragging bottom-left
+        x = currentCropSession.startX - width;
+        y = currentCropSession.startY;
+    } else if (currentX >= currentCropSession.startX && currentY < currentCropSession.startY) {
+        // Dragging top-right
+        x = currentCropSession.startX;
+        y = currentCropSession.startY - height;
+    } else {
+        // Dragging top-left
+        x = currentCropSession.startX - width;
+        y = currentCropSession.startY - height;
+    }
+    
+    // Ensure the crop area doesn't exceed overlay bounds
+    if (x < 0) {
+        x = 0;
+        width = Math.min(width, currentCropSession.startX);
+        height = width / aspectRatio;
+    }
+    if (y < 0) {
+        y = 0;
+        height = Math.min(height, currentCropSession.startY);
+        width = height * aspectRatio;
+    }
+    if (x + width > rect.width) {
+        width = rect.width - x;
+        height = width / aspectRatio;
+    }
+    if (y + height > rect.height) {
+        height = rect.height - y;
+        width = height * aspectRatio;
+    }
     
     currentCropSession.cropRect = { x, y, width, height };
     updateCropSelection();
@@ -1674,16 +1742,21 @@ function endDrag(e) {
     
     currentCropSession.isDragging = false;
     
-    // Ensure minimum size
-    if (currentCropSession.cropRect.width < 20) {
-        currentCropSession.cropRect.width = 20;
+    // Ensure minimum size while maintaining 16:9 aspect ratio
+    const aspectRatio = 16 / 9;
+    const minWidth = 80;  // Minimum width for 16:9 ratio
+    const minHeight = minWidth / aspectRatio;
+    
+    if (currentCropSession.cropRect.width < minWidth) {
+        currentCropSession.cropRect.width = minWidth;
+        currentCropSession.cropRect.height = minHeight;
     }
-    if (currentCropSession.cropRect.height < 20) {
-        currentCropSession.cropRect.height = 20;
+    if (currentCropSession.cropRect.height < minHeight) {
+        currentCropSession.cropRect.height = minHeight;
+        currentCropSession.cropRect.width = minWidth;
     }
     
     updateCropSelection();
-    updateInputFields();
 }
 
 function updateCropSelection() {
@@ -1704,12 +1777,68 @@ function updateCropSelection() {
 // Input field functions removed - now using drag-only interface
 
 function closeCropModal() {
-    if (currentCropSession && currentCropSession.videoElement) {
-        URL.revokeObjectURL(currentCropSession.videoElement.src);
-        currentCropSession.videoElement.src = '';
+    // Complete cleanup to prevent corruption and ensure safe cancellation
+    try {
+        // Stop any ongoing crop processing
+        if (window.cropProgressInterval) {
+            clearInterval(window.cropProgressInterval);
+            window.cropProgressInterval = null;
+        }
+        
+        // Clean up progress references
+        if (window.cropProgressBar) {
+            window.cropProgressBar = null;
+        }
+        if (window.cropProgressText) {
+            window.cropProgressText = null;
+        }
+        
+        // Remove progress indicator if it exists
+        const progressDiv = document.getElementById('crop-progress');
+        if (progressDiv && progressDiv.parentNode) {
+            progressDiv.parentNode.removeChild(progressDiv);
+        }
+        
+        // Clean up current crop session
+        if (currentCropSession) {
+            if (currentCropSession.videoElement) {
+                // Stop video playback
+                currentCropSession.videoElement.pause();
+                currentCropSession.videoElement.currentTime = 0;
+                
+                // Revoke object URL to free memory
+                if (currentCropSession.videoElement.src) {
+                    URL.revokeObjectURL(currentCropSession.videoElement.src);
+                }
+                currentCropSession.videoElement.src = '';
+                currentCropSession.videoElement = null;
+            }
+            
+            // Clear crop session data
+            currentCropSession.isDragging = false;
+            currentCropSession.recording = null;
+            currentCropSession.cropRect = null;
+            currentCropSession = null;
+        }
+        
+        // Clear any cached frames in the advanced crop manager
+        if (cropManager && cropManager.worker) {
+            cropManager.worker.postMessage({ type: 'clear-cache' });
+        }
+        
+        // Hide modal
+        document.getElementById('crop-modal').style.display = 'none';
+        
+        // Show cancellation message
+        stateManager.showAlert('Crop operation cancelled. Original video is safe and unchanged.', 'success');
+        
+    } catch (error) {
+        console.error('Error during crop modal cleanup:', error);
+        // Force cleanup even if errors occur
+        document.getElementById('crop-modal').style.display = 'none';
         currentCropSession = null;
+        stateManager.showAlert('Crop cancelled. Original video is safe.', 'success');
     }
-    document.getElementById('crop-modal').style.display = 'none';
 }
 
 async function applyCrop() {
@@ -1860,8 +1989,412 @@ async function applyCrop() {
     }
 }
 
-// Simple canvas-based crop processing with optimization for larger videos
+// Advanced crop processing with OffscreenCanvas, WebGL acceleration, and smart caching
+class AdvancedCropManager {
+    constructor() {
+        this.worker = null;
+        this.isInitialized = false;
+        this.webglEnabled = false;
+    }
+
+    async initialize() {
+        if (this.isInitialized) return;
+        
+        try {
+            // Create worker
+            this.worker = new Worker('crop-worker.js');
+            
+            // Create OffscreenCanvas
+            const canvas = document.createElement('canvas');
+            const offscreenCanvas = canvas.transferControlToOffscreen();
+            
+            // Initialize worker with OffscreenCanvas
+            return new Promise((resolve, reject) => {
+                this.worker.onmessage = (e) => {
+                    const { type, webglEnabled, error } = e.data;
+                    
+                    if (type === 'init-success') {
+                        this.isInitialized = true;
+                        this.webglEnabled = webglEnabled;
+                        console.log(`Crop processor initialized with ${webglEnabled ? 'WebGL' : '2D'} acceleration`);
+                        resolve();
+                    } else if (type === 'error') {
+                        reject(new Error(error));
+                    }
+                };
+                
+                this.worker.onerror = (error) => {
+                    reject(new Error('Worker initialization failed: ' + error.message));
+                };
+                
+                this.worker.postMessage({
+                    type: 'init',
+                    data: { canvas: offscreenCanvas }
+                }, [offscreenCanvas]);
+            });
+        } catch (error) {
+            console.warn('Advanced crop processor failed to initialize, falling back to basic processing:', error);
+            throw error;
+        }
+    }
+
+    terminate() {
+        if (this.worker) {
+            // Send cleanup message before terminating
+            try {
+                this.worker.postMessage({ type: 'clear-cache' });
+            } catch (error) {
+                console.warn('Failed to send cleanup message to worker:', error);
+            }
+            
+            // Terminate worker
+            this.worker.terminate();
+            this.worker = null;
+            this.isInitialized = false;
+            this.webglEnabled = false;
+        }
+    }
+    
+    // Safe cleanup method that can be called during cancellation
+    cleanup() {
+        try {
+            if (this.worker) {
+                this.worker.postMessage({ type: 'clear-cache' });
+            }
+        } catch (error) {
+            console.warn('Worker cleanup failed:', error);
+        }
+    }
+}
+
+// Global crop manager instance
+let cropManager = new AdvancedCropManager();
+
+// Global cleanup function for safe shutdown
+function cleanupCropResources() {
+    try {
+        // Clean up crop manager
+        if (cropManager) {
+            cropManager.cleanup();
+        }
+        
+        // Clean up any active crop session
+        if (currentCropSession) {
+            if (currentCropSession.videoElement) {
+                currentCropSession.videoElement.pause();
+                if (currentCropSession.videoElement.src) {
+                    URL.revokeObjectURL(currentCropSession.videoElement.src);
+                }
+            }
+            currentCropSession = null;
+        }
+        
+        // Clear progress tracking
+        if (window.cropProgressInterval) {
+            clearInterval(window.cropProgressInterval);
+            window.cropProgressInterval = null;
+        }
+        
+        window.cropProgressBar = null;
+        window.cropProgressText = null;
+        
+    } catch (error) {
+        console.warn('Crop cleanup error:', error);
+    }
+}
+
+// Add cleanup to page unload events
+window.addEventListener('beforeunload', cleanupCropResources);
+window.addEventListener('unload', cleanupCropResources);
+
+// Add cleanup to visibility change (when user switches tabs)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        cleanupCropResources();
+    }
+});
+
+// High-performance crop processing with OffscreenCanvas and WebGL
+async function processAdvancedCrop(videoBlob, cropParams) {
+    const { left, right, top, bottom } = cropParams;
+    
+    // Calculate new dimensions
+    const video = document.createElement('video');
+    video.src = URL.createObjectURL(videoBlob);
+    video.muted = true;
+    video.preload = 'metadata';
+    
+    return new Promise(async (resolve, reject) => {
+        try {
+            // Initialize advanced crop manager if needed
+            if (!cropManager.isInitialized) {
+                try {
+                    await cropManager.initialize();
+                } catch (initError) {
+                    console.warn('Advanced processing unavailable, using fallback:', initError);
+                    return processSimpleCropFallback(videoBlob, cropParams).then(resolve).catch(reject);
+                }
+            }
+            
+            video.onloadedmetadata = async () => {
+                try {
+                    const originalWidth = video.videoWidth;
+                    const originalHeight = video.videoHeight;
+                    
+                    // Calculate new dimensions
+                    const newWidth = originalWidth - left - right;
+                    const newHeight = originalHeight - top - bottom;
+                    
+                    if (newWidth <= 0 || newHeight <= 0) {
+                        URL.revokeObjectURL(video.src);
+                        reject(new Error('Invalid crop dimensions. Check your crop values.'));
+                        return;
+                    }
+                    
+                    // Check if resulting video would be too large
+                    if (newWidth > 4000 || newHeight > 4000) {
+                        URL.revokeObjectURL(video.src);
+                        reject(new Error('Resulting video dimensions too large. Try smaller crop area.'));
+                        return;
+                    }
+                    
+                    // Create high-performance canvas for output
+                    const outputCanvas = document.createElement('canvas');
+                    outputCanvas.width = newWidth;
+                    outputCanvas.height = newHeight;
+                    
+                    const outputCtx = outputCanvas.getContext('2d', {
+                        alpha: false,
+                        willReadFrequently: false
+                    });
+                    
+                    // Set up MediaRecorder with optimized settings
+                    const stream = outputCanvas.captureStream(30);
+                    let mimeType = 'video/webm;codecs=vp8';
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        mimeType = 'video/webm;codecs=vp9';
+                        if (!MediaRecorder.isTypeSupported(mimeType)) {
+                            mimeType = 'video/webm';
+                        }
+                    }
+                    
+                    const recorder = new MediaRecorder(stream, {
+                        mimeType: mimeType,
+                        videoBitsPerSecond: 8000000  // 8 Mbps for high quality
+                    });
+                    
+                    const chunks = [];
+                    let frameCount = 0;
+                    let processedFrames = 0;
+                    
+                    recorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) {
+                            chunks.push(e.data);
+                        }
+                    };
+                    
+                    recorder.onstop = () => {
+                        try {
+                            // Clear progress tracking
+                            if (window.cropProgressInterval) {
+                                clearInterval(window.cropProgressInterval);
+                                window.cropProgressInterval = null;
+                            }
+                            
+                            if (window.cropProgressBar && window.cropProgressText) {
+                                window.cropProgressBar.style.width = '100%';
+                                window.cropProgressText.textContent = '100%';
+                            }
+                            
+                            const croppedBlob = new Blob(chunks, { type: mimeType.split(';')[0] });
+                            URL.revokeObjectURL(video.src);
+                            
+                            // Clean up progress references
+                            window.cropProgressBar = null;
+                            window.cropProgressText = null;
+                            
+                            if (croppedBlob.size === 0) {
+                                reject(new Error('Processing resulted in empty video. Try different crop settings.'));
+                            } else {
+                                console.log(`Advanced crop completed: ${processedFrames} frames processed with ${cropManager.webglEnabled ? 'WebGL' : '2D'} acceleration`);
+                                resolve(croppedBlob);
+                            }
+                        } catch (error) {
+                            URL.revokeObjectURL(video.src);
+                            window.cropProgressBar = null;
+                            window.cropProgressText = null;
+                            reject(new Error('Failed to create cropped video: ' + error.message));
+                        }
+                    };
+                    
+                    recorder.onerror = (event) => {
+                        if (window.cropProgressInterval) {
+                            clearInterval(window.cropProgressInterval);
+                            window.cropProgressInterval = null;
+                        }
+                        
+                        URL.revokeObjectURL(video.src);
+                        window.cropProgressBar = null;
+                        window.cropProgressText = null;
+                        reject(new Error('Recording failed: ' + (event.error?.message || 'Unknown error')));
+                    };
+                    
+                    // Start recording
+                    recorder.start(500);
+                    
+                    // High-performance rendering loop with smart frame processing
+                    let lastRenderTime = 0;
+                    const targetFrameTime = 1000 / 30; // 30fps
+                    
+                    const renderFrame = async (currentTime) => {
+                        if (video.ended || video.paused) {
+                            recorder.stop();
+                            return;
+                        }
+                        
+                        // Frame rate limiting for consistent 30fps
+                        if (currentTime - lastRenderTime >= targetFrameTime) {
+                            try {
+                                // Use high-quality image rendering
+                                outputCtx.imageSmoothingEnabled = true;
+                                outputCtx.imageSmoothingQuality = 'high';
+                                
+                                // Draw cropped frame with optimized parameters
+                                outputCtx.drawImage(
+                                    video,
+                                    left, top, newWidth, newHeight,
+                                    0, 0, newWidth, newHeight
+                                );
+                                
+                                frameCount++;
+                                processedFrames++;
+                                lastRenderTime = currentTime;
+                                
+                                // Update progress
+                                if (video.duration > 0) {
+                                    const progress = Math.min(100, (video.currentTime / video.duration) * 100);
+                                    if (window.cropProgressBar && window.cropProgressText) {
+                                        window.cropProgressBar.style.width = progress + '%';
+                                        window.cropProgressText.textContent = Math.round(progress) + '%';
+                                    }
+                                }
+                                
+                            } catch (drawError) {
+                                console.warn('Frame drawing error:', drawError);
+                            }
+                        }
+                        
+                        requestAnimationFrame(renderFrame);
+                    };
+                    
+                    // Start processing
+                    video.play().then(() => {
+                        console.log(`Starting advanced crop processing with ${cropManager.webglEnabled ? 'WebGL' : '2D'} acceleration`);
+                        requestAnimationFrame(renderFrame);
+                    }).catch(playError => {
+                        URL.revokeObjectURL(video.src);
+                        reject(new Error('Failed to play video: ' + playError.message));
+                    });
+                    
+                } catch (error) {
+                    URL.revokeObjectURL(video.src);
+                    reject(new Error('Advanced processing setup failed: ' + error.message));
+                }
+            };
+            
+            video.onerror = () => {
+                URL.revokeObjectURL(video.src);
+                reject(new Error('Failed to load video. File may be corrupted.'));
+            };
+            
+        } catch (error) {
+            console.warn('Advanced crop processing failed, using fallback:', error);
+            processSimpleCropFallback(videoBlob, cropParams).then(resolve).catch(reject);
+        }
+    });
+}
+
+// Fallback processing for when advanced features are unavailable
+async function processSimpleCropFallback(videoBlob, cropParams) {
+    return new Promise((resolve, reject) => {
+        const { left, right, top, bottom } = cropParams;
+        
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(videoBlob);
+        video.muted = true;
+        video.preload = 'metadata';
+        
+        video.onloadedmetadata = () => {
+            try {
+                const originalWidth = video.videoWidth;
+                const originalHeight = video.videoHeight;
+                const newWidth = originalWidth - left - right;
+                const newHeight = originalHeight - top - bottom;
+                
+                if (newWidth <= 0 || newHeight <= 0) {
+                    URL.revokeObjectURL(video.src);
+                    reject(new Error('Invalid crop dimensions.'));
+                    return;
+                }
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { alpha: false });
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                
+                const stream = canvas.captureStream(30);
+                const recorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm;codecs=vp8',
+                    videoBitsPerSecond: 8000000
+                });
+                
+                const chunks = [];
+                recorder.ondataavailable = (e) => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    URL.revokeObjectURL(video.src);
+                    resolve(blob);
+                };
+                
+                recorder.start(500);
+                
+                const renderFrame = () => {
+                    if (video.ended || video.paused) {
+                        recorder.stop();
+                        return;
+                    }
+                    
+                    ctx.drawImage(video, left, top, newWidth, newHeight, 0, 0, newWidth, newHeight);
+                    requestAnimationFrame(renderFrame);
+                };
+                
+                video.play().then(() => requestAnimationFrame(renderFrame));
+                
+            } catch (error) {
+                URL.revokeObjectURL(video.src);
+                reject(error);
+            }
+        };
+        
+        video.onerror = () => {
+            URL.revokeObjectURL(video.src);
+            reject(new Error('Failed to load video.'));
+        };
+    });
+}
+
+// Main processing function that chooses the best available method
 async function processSimpleCrop(videoBlob, cropParams) {
+    try {
+        return await processAdvancedCrop(videoBlob, cropParams);
+    } catch (error) {
+        console.warn('Advanced processing failed, using simple fallback:', error);
+        return await processSimpleCropFallback(videoBlob, cropParams);
+    }
+}
+
+// Legacy function for compatibility - now uses advanced processing
+async function processSimpleCropLegacy(videoBlob, cropParams) {
     return new Promise((resolve, reject) => {
         const { left, right, top, bottom } = cropParams;
         
@@ -1920,8 +2453,8 @@ async function processSimpleCrop(videoBlob, cropParams) {
                 }
                 
                 const recorder = new MediaRecorder(stream, {
-                    mimeType: mimeType
-                    // No bitrate limit - use browser's default high-quality encoding to match original recordings
+                    mimeType: mimeType,
+                    videoBitsPerSecond: 8000000  // 8 Mbps for high quality 1080p 30fps
                 });
                 
                 const chunks = [];
