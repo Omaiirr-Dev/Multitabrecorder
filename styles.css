@@ -792,16 +792,17 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
 .simple-crop-content {
     position: relative;
     background-color: #1a1a1a;
-    margin: 2% auto;
+    margin: 3% auto;
     padding: 0;
     border: 1px solid #404040;
     border-radius: 8px;
-    width: 95%;
-    max-width: 1200px;
-    min-height: 80vh;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
 }
 
 .crop-header {
@@ -850,7 +851,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
     border-radius: 6px;
     border: 1px solid #404040;
     overflow: hidden;
-    min-height: 60vh;
+    height: 70vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -858,8 +859,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important;
 
 #crop-video {
     width: 100%;
-    height: auto;
-    min-height: 60vh;
+    height: 100%;
     object-fit: contain;
     display: block;
 }
